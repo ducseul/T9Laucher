@@ -6,7 +6,7 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 
-import com.t9launcher.search.AppNameNormalizer;
+import com.t9launcher.search.AppNameMatcher;
 
 import java.text.Collator;
 import java.util.ArrayList;
@@ -39,26 +39,40 @@ public final class InstalledAppRepository implements AppRepository {
 
     @Override
     public List<ActivityInfo> filterAndSort(List<ActivityInfo> apps, CharSequence query) {
-        List<ActivityInfo> filtered = new ArrayList<>();
-        String normalizedQuery = AppNameNormalizer.normalize(query);
+        List<MatchedApp> matches = new ArrayList<>();
         for (ActivityInfo app : apps) {
-            if (normalizedQuery.isEmpty()
-                    || AppNameNormalizer.normalize(label(app)).contains(normalizedQuery)) {
-                filtered.add(app);
-            }
+            String appLabel = label(app);
+            int score = AppNameMatcher.score(appLabel, query);
+            if (score != AppNameMatcher.NO_MATCH) matches.add(new MatchedApp(app, appLabel, score));
         }
-        Collections.sort(filtered, (left, right) -> {
-            int byLabel = labelCollator.compare(label(left), label(right));
+        Collections.sort(matches, (left, right) -> {
+            int byScore = Integer.compare(right.score, left.score);
+            if (byScore != 0) return byScore;
+            int byLabel = labelCollator.compare(left.label, right.label);
             if (byLabel != 0) return byLabel;
-            int byPackage = left.packageName.compareToIgnoreCase(right.packageName);
+            int byPackage = left.app.packageName.compareToIgnoreCase(right.app.packageName);
             if (byPackage != 0) return byPackage;
-            return left.name.compareToIgnoreCase(right.name);
+            return left.app.name.compareToIgnoreCase(right.app.name);
         });
+        List<ActivityInfo> filtered = new ArrayList<>(matches.size());
+        for (MatchedApp match : matches) filtered.add(match.app);
         return filtered;
     }
 
     @Override
     public String label(ActivityInfo app) {
         return app.loadLabel(packageManager).toString();
+    }
+
+    private static final class MatchedApp {
+        final ActivityInfo app;
+        final String label;
+        final int score;
+
+        MatchedApp(ActivityInfo app, String label, int score) {
+            this.app = app;
+            this.label = label;
+            this.score = score;
+        }
     }
 }
