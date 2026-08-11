@@ -3,3 +3,8 @@ local.properties
 build/
 app/build/
 output/
+/.idea/
+/*.iml
+/gradle/wrapper/
+/gradlew
+/gradlew.bat
