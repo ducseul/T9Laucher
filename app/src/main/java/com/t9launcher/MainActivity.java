@@ -115,6 +115,10 @@ public final class MainActivity extends Activity {
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
         String key = mapKey(event.getKeyCode());
         if (key == null) return super.dispatchKeyEvent(event);
+        if (launcher != null && launcher.isDrawerTextInputActive()
+                && isT9DigitKey(event.getKeyCode())) {
+            return super.dispatchKeyEvent(event);
+        }
         if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
             if (deferredShortPress && key.equals(heldKey)) {
                 fireLongPressWhenDue(key);
@@ -258,5 +262,9 @@ public final class MainActivity extends Activity {
     private static boolean isDirectional(String key) {
         return key.equals("up") || key.equals("down")
                 || key.equals("left") || key.equals("right");
+    }
+
+    private static boolean isT9DigitKey(int keyCode) {
+        return keyCode >= KeyEvent.KEYCODE_0 && keyCode <= KeyEvent.KEYCODE_9;
     }
 }

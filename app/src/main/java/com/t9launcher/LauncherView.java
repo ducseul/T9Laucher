@@ -13,8 +13,17 @@ import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Handler;
+import android.text.Editable;
+import android.text.InputType;
+import android.text.Selection;
+import android.text.SpannableStringBuilder;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.inputmethod.BaseInputConnection;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputConnection;
+import android.view.inputmethod.InputMethodManager;
 
 import java.text.Normalizer;
 import java.text.SimpleDateFormat;
@@ -41,7 +50,7 @@ public final class LauncherView extends View {
     private int fontSizeSp = 14;
     private boolean showStatusBar = true;
     private final int[] bindings = new int[9];
-    private String query = "";
+    private final Editable query = new SpannableStringBuilder();
     private boolean locked;
     private boolean notifications;
     private boolean silent;
@@ -60,6 +69,9 @@ public final class LauncherView extends View {
         super(c);
         d = getResources().getDisplayMetrics().density;
         setFocusable(true);
+        setFocusableInTouchMode(true);
+        requestFocus();
+        Selection.setSelection(query, 0);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             setDefaultFocusHighlightEnabled(false);
         }
@@ -91,8 +103,133 @@ public final class LauncherView extends View {
         locked = false;
         notifications = false;
         screen = 0;
-        query = "";
+        query.clear();
+        refreshTextInput();
         invalidate();
+    }
+
+    public boolean isDrawerTextInputActive() {
+        return screen == 1 && !locked && !notifications;
+    }
+
+    @Override
+    public boolean onCheckIsTextEditor() {
+        return isDrawerTextInputActive();
+    }
+
+    @Override
+    public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
+        if (!isDrawerTextInputActive()) return null;
+        outAttrs.inputType = InputType.TYPE_CLASS_TEXT
+                | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES;
+        outAttrs.imeOptions = EditorInfo.IME_ACTION_DONE
+                | EditorInfo.IME_FLAG_NO_EXTRACT_UI;
+        outAttrs.initialSelStart = Selection.getSelectionStart(query);
+        outAttrs.initialSelEnd = Selection.getSelectionEnd(query);
+        return new BaseInputConnection(this, true) {
+            @Override
+            public Editable getEditable() {
+                return query;
+            }
+
+            @Override
+            public boolean commitText(CharSequence text, int newCursorPosition) {
+                boolean handled = super.commitText(text, newCursorPosition);
+                onQueryChanged();
+                return handled;
+            }
+
+            @Override
+            public boolean setComposingText(CharSequence text, int newCursorPosition) {
+                boolean handled = super.setComposingText(text, newCursorPosition);
+                onQueryChanged();
+                return handled;
+            }
+
+            @Override
+            public boolean deleteSurroundingText(int beforeLength, int afterLength) {
+                boolean handled = super.deleteSurroundingText(beforeLength, afterLength);
+                onQueryChanged();
+                return handled;
+            }
+
+            @Override
+            public boolean performEditorAction(int actionCode) {
+                if (actionCode == EditorInfo.IME_ACTION_DONE) {
+                    launchSelected();
+                    return true;
+                }
+                return super.performEditorAction(actionCode);
+            }
+        };
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (!isDrawerTextInputActive()) return super.onKeyDown(keyCode, event);
+        if (keyCode == KeyEvent.KEYCODE_DEL) {
+            deleteQueryCharacter();
+            return true;
+        }
+        if (keyCode == KeyEvent.KEYCODE_STAR) {
+            deleteQueryCharacter();
+            return true;
+        }
+        if (keyCode == KeyEvent.KEYCODE_POUND) {
+            query.clear();
+            onQueryChanged();
+            return true;
+        }
+        int unicode = event.getUnicodeChar();
+        if (unicode != 0 && (Character.isLetter(unicode) || Character.isWhitespace(unicode))) {
+            replaceQuerySelection(new String(Character.toChars(unicode)));
+            return true;
+        }
+        // Raw number keys must be left for the configured T9 IME (for example QinVN).
+        return keyCode >= KeyEvent.KEYCODE_0 && keyCode <= KeyEvent.KEYCODE_9;
+    }
+
+    private void replaceQuerySelection(CharSequence text) {
+        int start = Math.max(0, Selection.getSelectionStart(query));
+        int end = Math.max(0, Selection.getSelectionEnd(query));
+        query.replace(Math.min(start, end), Math.max(start, end), text);
+        Selection.setSelection(query, Math.min(start, end) + text.length());
+        onQueryChanged();
+    }
+
+    private void deleteQueryCharacter() {
+        int start = Math.max(0, Selection.getSelectionStart(query));
+        int end = Math.max(0, Selection.getSelectionEnd(query));
+        if (start != end) {
+            query.delete(Math.min(start, end), Math.max(start, end));
+            Selection.setSelection(query, Math.min(start, end));
+        } else if (start > 0) {
+            int previous = Character.offsetByCodePoints(query, start, -1);
+            query.delete(previous, start);
+            Selection.setSelection(query, previous);
+        }
+        onQueryChanged();
+    }
+
+    private void onQueryChanged() {
+        selected = 0;
+        drawerOffset = 0;
+        invalidate();
+    }
+
+    private void refreshTextInput() {
+        requestFocus();
+        post(() -> {
+            InputMethodManager input = (InputMethodManager) getContext()
+                    .getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (input == null) return;
+            input.restartInput(this);
+            if (isDrawerTextInputActive()) {
+                input.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT);
+            } else {
+                input.hideSoftInputFromWindow(getWindowToken(), 0);
+            }
+        });
     }
 
     private void loadApps() {
@@ -185,7 +322,7 @@ public final class LauncherView extends View {
         c.drawRoundRect(new RectF(dp(inset), dp(searchTop), getWidth() - dp(inset),
                 dp(searchBottom)), 10f, 10f, p);
         mono(c, "T9", 35f, 94f, 15, amber);
-        text(c, query.length() == 0 ? "Tìm app…" : query, 78f, 94f,
+        text(c, query.length() == 0 ? "Tìm app…" : query.toString(), 78f, 94f,
                 Math.max(14, Math.min(20, fontSizeSp - 3)),
                 query.length() == 0 ? Color.rgb(170, 169, 173) : Color.WHITE);
 
@@ -345,7 +482,7 @@ public final class LauncherView extends View {
 
     private List<ActivityInfo> drawerApps() {
         List<ActivityInfo> filtered = new ArrayList<>();
-        String normalizedQuery = norm(query);
+        String normalizedQuery = norm(query.toString());
         for (ActivityInfo app : apps) {
             String label = appLabel(app);
             if (normalizedQuery.length() == 0 || norm(label).contains(normalizedQuery)) filtered.add(app);
@@ -453,7 +590,8 @@ public final class LauncherView extends View {
             if (screen != 0) {
                 if (screen == 3) savePrefs();
                 screen = 0;
-                query = "";
+                query.clear();
+                refreshTextInput();
                 invalidate();
             }
             return;
@@ -531,6 +669,7 @@ public final class LauncherView extends View {
             screen = 1;
             selected = 0;
             drawerOffset = 0;
+            refreshTextInput();
             invalidate();
             return;
         }
@@ -545,12 +684,11 @@ public final class LauncherView extends View {
             return;
         }
         if (screen == 1) {
-            if (key.equals("*")) query = query.length() > 0 ? query.substring(0, query.length() - 1) : query;
-            else if (key.equals("#")) query = "";
-            else if (key.matches("[0-9]")) query += key;
-            selected = 0;
-            drawerOffset = 0;
-            invalidate();
+            if (key.equals("*")) deleteQueryCharacter();
+            else if (key.equals("#")) {
+                query.clear();
+                onQueryChanged();
+            }
             return;
         }
     }
@@ -706,7 +844,8 @@ public final class LauncherView extends View {
                 screen = 1;
                 selected = 0;
                 drawerOffset = 0;
-                query = "";
+                query.clear();
+                refreshTextInput();
                 invalidate();
                 return true;
             }
