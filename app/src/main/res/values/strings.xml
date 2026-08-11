@@ -1,0 +1,4 @@
+<resources>
+    <string name="device_admin_description">Cho phép khóa màn hình bằng phím corner 4.</string>
+    <string name="accessibility_service_description">Cho phép T9 Launcher nhận phím CALL và Hang Up trước hệ thống để mở Điện thoại, về Home hoặc khóa màn hình đúng ngữ cảnh.</string>
+</resources>
