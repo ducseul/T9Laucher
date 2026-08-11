@@ -278,7 +278,8 @@ public final class LauncherView extends View {
     private void drawHome(Canvas c) {
         String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
         p.setTextAlign(Paint.Align.CENTER);
-        mono(c, time, getWidth() / 2f, dp(66), fontSizeSp + 3, Color.rgb(243, 239, 231));
+        float clockSizeSp = Math.max(28, Math.min(38, fontSizeSp * 2));
+        mono(c, time, getWidth() / 2f, dp(66), clockSizeSp, Color.rgb(243, 239, 231));
         text(c, new SimpleDateFormat("EEE, dd/MM", Locale.US).format(new Date()).toUpperCase(Locale.US),
                 getWidth() / 2f, dp(86), 10, Color.rgb(139, 138, 144));
         p.setTextAlign(Paint.Align.LEFT);
