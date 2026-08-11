@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T9 Launcher — Mockup</title>
+<style>
+  :root{
+    --bg-page:#0d0d0f;
+    --shell:#302f33;
+    --shell-hi:#403f44;
+    --screen-bg:#161618;
+    --fg:#f3efe7;
+    --fg-dim:#8b8a90;
+    --fg-faint:#5a5960;
+    --accent:#ffb454;
+    --accent-dim:rgba(255,180,84,0.14);
+    --call:#4cd97a;
+    --call-dim:rgba(76,217,122,0.15);
+    --end:#e2534f;
+    --end-dim:rgba(226,83,79,0.15);
+    --divider:#2b2b2f;
+    --key:#39383d;
+    --key-hi:#47464c;
+    /* Prototype fallback matches the offline/low-RAM target: no webfont download. */
+    --mono:'Courier New', ui-monospace, monospace;
+    --sans:Arial, 'Segoe UI', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg-page);
+    color:var(--fg);
+    font-family:var(--sans);
+    min-height:100vh;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:32px 16px;
+  }
+  .page{
+    display:flex;
+    gap:36px;
+    align-items:flex-start;
+    flex-wrap:wrap;
+    justify-content:center;
+    max-width:760px;
+  }
+
+  /* ---------- Device shell ---------- */
+  .device{
+    width:290px;
+    background:linear-gradient(160deg, var(--shell-hi), var(--shell));
+    border-radius:26px;
+    padding:16px 14px 20px;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05);
+    user-select:none;
+  }
+  .device.profile-28{ width:244px; }
+  .device.profile-28 .screen{ height:300px; }
+  .device.profile-28 .navpad{ width:128px; gap:4px; }
+  .device.profile-28 .keypad{ margin-top:8px; }
+  .device.profile-28 .keygrid{ gap:5px; }
+  .device.profile-28 .key{ padding:4px 0 3px; border-radius:7px; }
+  .device.profile-28 .key .digit{ font-size:13px; }
+  .device.profile-28 .key .letters{ font-size:6.5px; }
+  .device.profile-28 .nav-corner{ border-radius:7px; padding:5px 0; }
+  .device.profile-28 .nav-arrow,.device.profile-28 .nav-center{ border-radius:7px; }
+  .device.profile-28 .nav-corner .l{ font-size:12px; }
+  .device.profile-28 .navpad{ margin-top:9px; }
+  .earpiece{
+    width:44px; height:5px; border-radius:3px;
+    background:#1c1c1e;
+    margin:0 auto 12px;
+    opacity:0.6;
+  }
+  .screen-frame{
+    background:#000;
+    border-radius:10px;
+    padding:6px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  .screen{
+    position:relative;
+    width:100%;
+    height:340px;
+    background:var(--screen-bg);
+    border-radius:6px;
+    overflow:hidden;
+    font-family:var(--sans);
+    transition:background .3s;
+  }
+  .view{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    transition:transform .28s cubic-bezier(.4,0,.2,1), opacity .28s;
+  }
+  .view.hidden-left{ transform:translateX(-100%); opacity:0; pointer-events:none; }
+  .view.hidden-right{ transform:translateX(100%); opacity:0; pointer-events:none; }
+
+  /* status strip */
+  .status{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:6px 10px 0; font-family:var(--mono); font-size:9px; color:var(--fg-faint); letter-spacing:.5px;
+  }
+  .status .silent-ico{ color:var(--accent); opacity:0; transition:opacity .2s; }
+  .status .silent-ico.on{ opacity:1; }
+
+  /* ---------- Home ---------- */
+  .clock-block{ text-align:center; padding:12px 0 8px; }
+  .clock-time{ font-family:var(--mono); font-weight:800; font-size:32px; letter-spacing:1px; line-height:1; color:var(--fg); font-variant-numeric:tabular-nums; }
+  .clock-date{ font-family:var(--mono); font-size:10px; color:var(--fg-dim); text-transform:uppercase; letter-spacing:1.5px; margin-top:5px; }
+  .divider{ height:1px; background:var(--divider); margin:0 12px; }
+
+  .app-list{ flex:1; padding:8px 0; display:flex; flex-direction:column; gap:2px; overflow-y:auto; }
+  .app-row{
+    display:flex; align-items:center; gap:9px;
+    padding:7px 12px;
+    cursor:pointer;
+    border-left:2px solid transparent;
+    transition:background .15s, border-color .15s;
+  }
+  .app-row.align-right{ flex-direction:row-reverse; text-align:right; border-left:none; border-right:2px solid transparent; }
+  .app-row.selected{ background:var(--accent-dim); border-left-color:var(--accent); }
+  .app-row.align-right.selected{ border-right-color:var(--accent); }
+  .badge{
+    font-family:var(--mono); font-weight:700; font-size:11px;
+    width:18px; height:18px; border-radius:4px;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--key); color:var(--accent);
+    flex-shrink:0;
+  }
+  .app-icon{ font-size:16px; width:20px; text-align:center; flex-shrink:0; }
+  #screen .app-name{ font-size:13px; color:var(--fg); font-weight:500; transition:font-size .15s; }
+  .app-row.empty .app-name{ color:var(--fg-faint); font-style:italic; }
+  #screen.ts-small .app-name{ font-size:11px; }
+  #screen.ts-large .app-name{ font-size:15.5px; }
+  #screen.ts-small .clock-time{ font-size:27px; }
+  #screen.ts-large .clock-time{ font-size:38px; }
+
+  /* ---------- Drawer ---------- */
+  .search-bar{
+    margin:10px 10px 4px;
+    background:var(--key);
+    border-radius:6px;
+    padding:7px 9px;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--fg);
+    display:flex; align-items:center; gap:6px;
+    min-height:16px;
+  }
+  .search-bar .caret{ color:var(--accent); animation:blink 1s step-end infinite; }
+  @keyframes blink{ 50%{opacity:0;} }
+  .search-bar.placeholder{ color:var(--fg-faint); }
+  .drawer-list{ flex:1; overflow-y:auto; padding:4px 0 8px; }
+  .drawer-row{ display:flex; align-items:center; gap:10px; padding:6px 14px; border-left:2px solid transparent; }
+  .drawer-row.selected{ background:var(--accent-dim); border-left-color:var(--accent); }
+  .drawer-row .app-name{ font-size:12.5px; }
+  .no-result{ text-align:center; color:var(--fg-faint); font-size:11px; margin-top:20px; font-family:var(--mono); }
+
+  /* ---------- Dialer ---------- */
+  .dialer{ flex:1; display:flex; flex-direction:column; padding:14px 16px; }
+  .dial-label{ font-family:var(--mono); font-size:9px; letter-spacing:1.5px; color:var(--fg-faint); text-transform:uppercase; }
+  .dial-number{
+    font-family:var(--mono); font-weight:700; font-size:24px; letter-spacing:1px;
+    margin-top:10px; min-height:32px; color:var(--fg);
+    word-break:break-all;
+  }
+  .dial-hint{ margin-top:auto; font-size:10px; color:var(--fg-faint); font-family:var(--mono); text-align:center; }
+  .dial-actions{ display:flex; gap:8px; margin-top:10px; }
+  .dial-btn{ flex:1; text-align:center; border-radius:6px; padding:8px 0; font-size:11px; font-weight:600; cursor:pointer; }
+  .dial-btn.call{ background:var(--call-dim); color:var(--call); }
+  .dial-btn.back{ background:var(--key); color:var(--fg-dim); }
+
+  /* ---------- Settings ---------- */
+  .settings-tabs{ display:flex; margin:8px 8px 0; border-radius:6px; overflow:hidden; background:var(--key); }
+  .settings-tabs div{ flex:1; text-align:center; padding:6px 2px; font-size:9.5px; font-family:var(--mono); color:var(--fg-faint); text-transform:uppercase; letter-spacing:.3px; cursor:pointer; }
+  .settings-tabs div.active{ background:var(--accent-dim); color:var(--accent); }
+  .settings-body{ flex:1; overflow-y:auto; padding:6px 0 4px; }
+  .set-row{ display:flex; align-items:center; gap:9px; padding:7px 14px; border-left:2px solid transparent; }
+  .set-row.selected{ background:var(--accent-dim); border-left-color:var(--accent); }
+  .set-row .app-name{ font-size:12.5px; }
+  .set-row .tag{ margin-left:auto; font-family:var(--mono); font-size:8.5px; color:var(--fg-faint); }
+  .swatch{ width:16px; height:16px; border-radius:4px; flex-shrink:0; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12); }
+  .set-hint{ padding:8px 14px 2px; font-family:var(--mono); font-size:9px; color:var(--fg-faint); }
+
+  .toast{
+    position:absolute; left:50%; bottom:12px; transform:translateX(-50%);
+    background:rgba(0,0,0,0.85); color:var(--fg); font-size:11px; padding:7px 14px;
+    border-radius:20px; font-family:var(--sans); opacity:0; pointer-events:none;
+    transition:opacity .2s; white-space:nowrap; z-index:20;
+  }
+  .toast.show{ opacity:1; }
+
+  /* ---------- Overlays: lock / notifications ---------- */
+  .overlay{ position:absolute; inset:0; z-index:30; display:flex; flex-direction:column; opacity:0; pointer-events:none; transition:opacity .2s; }
+  .overlay.show{ opacity:1; pointer-events:auto; }
+  #overlayLock{ background:#000; align-items:center; justify-content:center; text-align:center; }
+  #overlayLock .lock-time{ font-family:var(--mono); font-weight:800; font-size:38px; color:var(--fg); }
+  #overlayLock .lock-date{ font-family:var(--mono); font-size:10px; color:var(--fg-dim); margin-top:6px; letter-spacing:1px; text-transform:uppercase; }
+  #overlayLock .lock-hint{ margin-top:26px; font-size:10px; color:var(--fg-faint); font-family:var(--mono); }
+  #overlayLock .lock-ico{ font-size:22px; margin-bottom:14px; opacity:.7; }
+
+  #overlayNotif{ background:rgba(10,10,11,0.97); justify-content:flex-start; transform:translateY(-100%); transition:transform .22s, opacity .22s; }
+  #overlayNotif.show{ transform:translateY(0); }
+  .notif-head{ padding:10px 14px 6px; font-family:var(--mono); font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--accent); border-bottom:1px solid var(--divider); }
+  .notif-item{ padding:9px 14px; border-bottom:1px solid var(--divider); font-size:11.5px; }
+  .notif-item .t{ font-weight:600; color:var(--fg); }
+  .notif-item .d{ color:var(--fg-faint); font-size:10px; margin-top:2px; }
+  .notif-empty{ padding:20px; text-align:center; color:var(--fg-faint); font-size:11px; font-family:var(--mono); }
+  .notif-hint{ margin-top:auto; padding:8px 14px; font-family:var(--mono); font-size:9px; color:var(--fg-faint); text-align:center; }
+
+  .hold-hint{ position:absolute; left:50%; bottom:34px; transform:translateX(-50%); font-family:var(--mono); font-size:9.5px; color:var(--fg-faint); opacity:0; transition:opacity .2s; pointer-events:none; z-index:15; }
+  .hold-hint.show{ opacity:1; }
+
+  /* ---------- D-pad navigation cluster ---------- */
+  .navpad{ width:148px; margin:12px auto 0; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); gap:6px; }
+  .nav-corner{
+    background:var(--key); border-radius:9px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:7px 0; cursor:pointer; transition:background .12s;
+    box-shadow:0 1px 0 rgba(255,255,255,0.03), 0 2px 3px rgba(0,0,0,0.3);
+  }
+  .nav-corner:active{ background:var(--accent-dim); }
+  .nav-corner .n{ font-family:var(--mono); font-weight:700; font-size:10px; color:var(--accent); }
+  .nav-corner .l{ font-size:14px; margin-top:2px; }
+  .nav-arrow{ display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--fg-dim); font-size:15px; border-radius:9px; }
+  .nav-arrow:active{ background:var(--key); color:var(--fg); }
+  .nav-center{
+    background:var(--accent-dim); border-radius:50%;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    color:var(--accent); font-family:var(--mono); font-weight:800; font-size:10px;
+  }
+  .nav-center:active{ background:var(--accent); color:#1a1a1a; }
+
+  /* ---------- Keypad ---------- */
+  .keypad{ margin-top:10px; padding:0 4px; }
+  .keygrid{ display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+  .key{
+    background:var(--key);
+    border-radius:9px;
+    padding:6px 0 5px;
+    text-align:center;
+    cursor:pointer;
+    transition:background .12s, transform .08s;
+    box-shadow:0 1px 0 rgba(255,255,255,0.03), 0 2px 3px rgba(0,0,0,0.3);
+  }
+  .key .digit{ font-family:var(--mono); font-weight:700; font-size:15px; color:var(--fg); }
+  .key .letters{ font-family:var(--mono); font-size:7.5px; color:var(--fg-faint); letter-spacing:1px; margin-top:1px; }
+  .key:active{ background:var(--accent-dim); }
+  .key:active .digit{ color:var(--accent); }
+  .key.longfire{ background:var(--call-dim); }
+  .key.longfire .digit{ color:var(--call); }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{ width:250px; font-size:12px; color:var(--fg-dim); padding-top:6px; }
+  .profile-switch{ display:flex; gap:6px; margin-bottom:8px; }
+  .profile-switch button{ flex:1; padding:7px 4px; border:1px solid var(--divider); border-radius:6px; background:transparent; color:var(--fg-dim); font:11px var(--sans); cursor:pointer; }
+  .profile-switch button.active{ background:var(--accent-dim); border-color:transparent; color:var(--accent); }
+  .profile-meta{ margin:0 0 18px; color:var(--fg-faint); font:10px/1.45 var(--mono); }
+  .sidebar h3{ font-family:var(--mono); font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--accent); margin:22px 0 10px; }
+  .sidebar h3:first-child{ margin-top:0; }
+  .ctrl-group{ margin-bottom:20px; }
+  .ctrl-label{ font-size:11px; color:var(--fg-faint); margin-bottom:6px; font-family:var(--mono); text-transform:uppercase; letter-spacing:.5px; }
+  .stepper{ display:flex; align-items:center; gap:10px; }
+  .stepper button{
+    width:26px; height:26px; border-radius:6px; border:none; background:var(--key); color:var(--fg);
+    font-size:14px; cursor:pointer; font-family:var(--mono);
+  }
+  .stepper button:hover{ background:var(--key-hi); }
+  .stepper span{ font-family:var(--mono); font-weight:700; width:16px; text-align:center; }
+  .toggle-pair{ display:flex; gap:6px; }
+  .toggle-pair button{
+    flex:1; padding:6px 0; border-radius:6px; border:1px solid var(--divider); background:transparent; color:var(--fg-dim);
+    font-size:11px; cursor:pointer; font-family:var(--sans);
+  }
+  .toggle-pair button.active{ background:var(--accent-dim); color:var(--accent); border-color:transparent; }
+  .legend-list{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:9px; }
+  .legend-list li{ display:flex; gap:8px; align-items:flex-start; line-height:1.4; }
+  .legend-key{ font-family:var(--mono); font-size:9.5px; background:var(--key); color:var(--accent); border-radius:4px; padding:2px 6px; flex-shrink:0; min-width:20px; text-align:center; white-space:nowrap; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="device">
+    <div class="earpiece"></div>
+    <div class="screen-frame">
+      <div class="screen ts-medium" id="screen">
+
+        <div class="view" id="view-home">
+          <div class="status"><span id="statusDate"></span><span class="silent-ico" id="silentIco">🔇</span></div>
+          <div class="clock-block">
+            <div class="clock-time" id="clockTime">--:--</div>
+            <div class="clock-date" id="clockDate">—</div>
+          </div>
+          <div class="divider"></div>
+          <div class="app-list" id="homeList"></div>
+          <div class="hold-hint" id="holdHint">Giữ để mở cấu hình…</div>
+        </div>
+
+        <div class="view hidden-right" id="view-drawer">
+          <div class="search-bar placeholder" id="searchBar">Nhấn phím số để tìm…</div>
+          <div class="divider"></div>
+          <div class="drawer-list" id="drawerList"></div>
+        </div>
+
+        <div class="view hidden-right" id="view-dialer">
+          <div class="dialer">
+            <div class="dial-label">Gọi điện</div>
+            <div class="dial-number" id="dialNumber">&nbsp;</div>
+            <div class="dial-hint">Nhấn số để nhập · phím 2 (Back) để đóng</div>
+            <div class="dial-actions">
+              <div class="dial-btn back" id="dialErase">⌫ Xoá</div>
+              <div class="dial-btn call" id="dialCall">📞 Gọi</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="view hidden-right" id="view-settings">
+          <div class="settings-tabs" id="settingsTabs">
+            <div data-tab="0">Gán phím</div>
+            <div data-tab="1">Hình nền</div>
+            <div data-tab="2">Cỡ chữ</div>
+          </div>
+          <div class="settings-body" id="settingsBody"></div>
+        </div>
+
+        <div class="overlay" id="overlayLock">
+          <div class="lock-ico">🔒</div>
+          <div class="lock-time" id="lockTime">--:--</div>
+          <div class="lock-date" id="lockDate">—</div>
+          <div class="lock-hint">Nhấn phím bất kỳ để mở khoá</div>
+        </div>
+
+        <div class="overlay" id="overlayNotif">
+          <div class="notif-head">Thông báo</div>
+          <div id="notifBody"></div>
+          <div class="notif-hint">Phím 2 (Back) để đóng</div>
+        </div>
+
+        <div class="toast" id="toast"></div>
+      </div>
+    </div>
+
+    <!-- D-pad navigation cluster -->
+    <div class="navpad" id="navpad">
+      <div class="nav-corner" data-nav="key1"><span class="n">1</span><span class="l">📋</span></div>
+      <div class="nav-arrow" data-nav="up">▲</div>
+      <div class="nav-corner" data-nav="key2"><span class="n">2</span><span class="l">↩</span></div>
+      <div class="nav-arrow" data-nav="left">◀</div>
+      <div class="nav-center" data-nav="center">OK</div>
+      <div class="nav-arrow" data-nav="right">▶</div>
+      <div class="nav-corner" data-nav="key3"><span class="n">3</span><span class="l">📞</span></div>
+      <div class="nav-arrow" data-nav="down">▼</div>
+      <div class="nav-corner" data-nav="key4"><span class="n">4</span><span class="l">🔒</span></div>
+    </div>
+
+    <div class="keypad">
+      <div class="keygrid" id="keygrid"></div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <h3>Cấu hình demo</h3>
+    <div class="ctrl-label">Hồ sơ thiết bị</div>
+    <div class="profile-switch">
+      <button id="profile28">2.8″ · QVGA</button>
+      <button id="profile35" class="active">3.5″ · HVGA</button>
+    </div>
+    <div class="profile-meta" id="profileMeta">320 × 480 px · giao diện đầy đủ</div>
+    <div class="ctrl-group">
+      <div class="ctrl-label">Số app trên màn hình chính</div>
+      <div class="stepper">
+        <button id="countMinus">–</button>
+        <span id="countVal">4</span>
+        <button id="countPlus">+</button>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <div class="ctrl-label">Căn danh sách</div>
+      <div class="toggle-pair">
+        <button id="alignLeft" class="active">Trái</button>
+        <button id="alignRight">Phải</button>
+      </div>
+    </div>
+
+    <h3>Cụm điều hướng (D-pad)</h3>
+    <ul class="legend-list">
+      <li><span class="legend-key">1</span> Mở danh sách toàn bộ app.</li>
+      <li><span class="legend-key">2</span> Back — quay lại / đóng màn hiện tại.</li>
+      <li><span class="legend-key">3</span> Mở nhanh màn hình gọi, sẵn sàng bấm số.</li>
+      <li><span class="legend-key">4</span> Nếu đang ở Menu/Gọi/Cấu hình: về Home trước. Nếu đã ở Home: khoá màn hình.</li>
+      <li><span class="legend-key">▲▼</span> Di chuyển lựa chọn trong danh sách / cấu hình.</li>
+      <li><span class="legend-key">◀▶</span> Đổi tab khi đang ở màn Cấu hình.</li>
+      <li><span class="legend-key">OK</span> Bấm 1 lần = mở mục đang chọn · bấm 2 lần liên tiếp = mở Thông báo.</li>
+    </ul>
+
+    <h3>Bàn phím T9</h3>
+    <ul class="legend-list">
+      <li><span class="legend-key">1–9</span> Nhấn nhanh trên Home = mở app gán ở vị trí đó.</li>
+      <li><span class="legend-key">giữ</span> Giữ 1 phím số (ở mọi màn hình) = mở nhanh bàn phím gọi với số đó điền sẵn.</li>
+      <li><span class="legend-key">1–9</span> Trong Menu: gõ kiểu multi-tap T9 để lọc danh sách theo tên.</li>
+      <li><span class="legend-key">giữ #</span> Bật / tắt chế độ im lặng, từ mọi màn hình.</li>
+      <li><span class="legend-key">giữ 5s</span> Giữ vào vị trí trống trên Home (không phải app) = mở Cấu hình riêng của launcher: gán phím, đổi hình nền, cỡ chữ.</li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const apps = [
+    {icon:'📞', name:'Điện thoại'},
+    {icon:'💬', name:'Tin nhắn'},
+    {icon:'👤', name:'Danh bạ'},
+    {icon:'📷', name:'Camera'},
+    {icon:'🖼️', name:'Thư viện ảnh'},
+    {icon:'🧮', name:'Máy tính'},
+    {icon:'⏰', name:'Đồng hồ'},
+    {icon:'📅', name:'Lịch'},
+    {icon:'🎙️', name:'Ghi âm'},
+    {icon:'📻', name:'Đài FM'},
+    {icon:'🔦', name:'Đèn pin'},
+    {icon:'⚙️', name:'Cài đặt hệ thống'}
+  ];
+
+  const wallpapers = [
+    {name:'Mặc định', css:'#161618'},
+    {name:'Hoàng hôn', css:'linear-gradient(160deg,#3a1f16,#1c0f0a)'},
+    {name:'Đại dương', css:'linear-gradient(160deg,#0f2a30,#081418)'},
+    {name:'Rừng', css:'linear-gradient(160deg,#122a18,#0a150c)'},
+    {name:'Than chì', css:'linear-gradient(160deg,#232326,#101012)'}
+  ];
+  const textSizes = ['Nhỏ','Vừa','Lớn'];
+  const textSizeClasses = ['ts-small','ts-medium','ts-large'];
+
+  const T9 = {'2':['a','b','c'],'3':['d','e','f'],'4':['g','h','i'],'5':['j','k','l'],
+              '6':['m','n','o'],'7':['p','q','r','s'],'8':['t','u','v'],'9':['w','x','y','z']};
+
+  let state = {
+    profile: '35',
+    homeCount: 4,
+    align: 'left',
+    view: 'home',
+    searchQuery: '',
+    dialBuffer: '',
+    lastKey: null, lastKeyTime: 0, cycleIndex: 0,
+    bindings: [0,1,2,3,4,5,6,7,8],
+    selHome: 0, selDrawer: 0,
+    settingsTab: 0, settingsSelBinding: 0,
+    wallpaperIndex: 0, textSizeIndex: 1,
+    silent: false, locked: false, notifOpen: false,
+    lastCenterTap: 0, pendingCenterTimeout: null
+  };
+
+  const el = id => document.getElementById(id);
+  const screenEl = el('screen');
+  const homeList = el('homeList'), drawerList = el('drawerList'), searchBar = el('searchBar'),
+        dialNumber = el('dialNumber'), keygrid = el('keygrid'), toast = el('toast'),
+        settingsBody = el('settingsBody'), settingsTabs = el('settingsTabs'),
+        holdHint = el('holdHint');
+
+  function normalize(s){
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').toLowerCase();
+  }
+  function currentFilteredApps(){
+    const q = state.searchQuery;
+    return q.length ? apps.filter(a => normalize(a.name).includes(q)) : apps;
+  }
+
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>toast.classList.remove('show'), 1000);
+  }
+
+  function switchView(name){
+    const views = {home:'view-home', drawer:'view-drawer', dialer:'view-dialer', settings:'view-settings'};
+    Object.entries(views).forEach(([k,domId])=>{
+      const node = el(domId);
+      node.classList.remove('hidden-left','hidden-right');
+      if(k===name) return;
+      node.classList.add('hidden-right');
+    });
+    state.view = name;
+  }
+
+  function launchApp(a){
+    showToast('Đang mở ' + a.name + '…');
+  }
+
+  /* ---------- Home ---------- */
+  function renderHome(){
+    homeList.innerHTML = '';
+    for(let i=0;i<state.homeCount;i++){
+      const appIdx = state.bindings[i];
+      const a = appIdx!=null ? apps[appIdx] : null;
+      const row = document.createElement('div');
+      row.className = 'app-row' + (state.align==='right' ? ' align-right':'') + (i===state.selHome?' selected':'') + (!a?' empty':'');
+      row.innerHTML = `<span class="badge">${i+1}</span><span class="app-icon">${a?a.icon:'—'}</span><span class="app-name">${a?a.name:'Chưa gán'}</span>`;
+      row.addEventListener('click', ()=>{ state.selHome=i; if(a) launchApp(a); renderHome(); });
+      homeList.appendChild(row);
+       if(i===state.selHome) row.parentElement.scrollTop = Math.max(0, row.offsetTop - row.parentElement.clientHeight / 3);
+    }
+  }
+
+  /* ---------- Drawer ---------- */
+  function renderDrawer(){
+    const q = state.searchQuery;
+    searchBar.classList.toggle('placeholder', q.length===0);
+    searchBar.innerHTML = q.length ? (q + '<span class="caret">|</span>') : 'Nhấn phím số để tìm…';
+    const filtered = currentFilteredApps();
+    drawerList.innerHTML = '';
+    if(filtered.length===0){
+      drawerList.innerHTML = '<div class="no-result">Không tìm thấy app</div>';
+      return;
+    }
+    if(state.selDrawer >= filtered.length) state.selDrawer = 0;
+    filtered.forEach((a,i)=>{
+      const row = document.createElement('div');
+      row.className = 'drawer-row' + (i===state.selDrawer?' selected':'');
+      row.innerHTML = `<span class="app-icon">${a.icon}</span><span class="app-name">${a.name}</span>`;
+      row.addEventListener('click', ()=>{ state.selDrawer=i; launchApp(a); });
+      drawerList.appendChild(row);
+       if(i===state.selDrawer) row.parentElement.scrollTop = Math.max(0, row.offsetTop - row.parentElement.clientHeight / 3);
+    });
+  }
+
+  /* ---------- Dialer ---------- */
+  function renderDialer(){
+    dialNumber.textContent = state.dialBuffer || '\u00A0';
+  }
+  function openDialer(startDigit){
+    state.dialBuffer = startDigit || '';
+    switchView('dialer');
+    renderDialer();
+  }
+
+  /* ---------- Settings ---------- */
+  function applyWallpaper(){
+    screenEl.style.background = wallpapers[state.wallpaperIndex].css;
+  }
+  function applyTextSize(){
+    screenEl.classList.remove('ts-small','ts-medium','ts-large');
+    screenEl.classList.add(textSizeClasses[state.textSizeIndex]);
+  }
+  function renderSettings(){
+    [...settingsTabs.children].forEach(t=> t.classList.toggle('active', Number(t.dataset.tab)===state.settingsTab));
+    settingsBody.innerHTML = '';
+    if(state.settingsTab === 0){
+      settingsBody.innerHTML = '<div class="set-hint">▲▼ chọn vị trí · OK để đổi app gán</div>';
+      for(let i=0;i<9;i++){
+        const appIdx = state.bindings[i];
+        const a = appIdx!=null ? apps[appIdx] : null;
+        const row = document.createElement('div');
+        row.className = 'set-row' + (i===state.settingsSelBinding?' selected':'');
+        row.innerHTML = `<span class="badge">${i+1}</span><span class="app-icon">${a?a.icon:'—'}</span><span class="app-name">${a?a.name:'Trống'}</span>`;
+        row.addEventListener('click', ()=>{ state.settingsSelBinding=i; renderSettings(); });
+        settingsBody.appendChild(row);
+      }
+    } else if(state.settingsTab === 1){
+      settingsBody.innerHTML = '<div class="set-hint">▲▼ xem trước hình nền, áp dụng ngay</div>';
+      wallpapers.forEach((w,i)=>{
+        const row = document.createElement('div');
+        row.className = 'set-row' + (i===state.wallpaperIndex?' selected':'');
+        row.innerHTML = `<span class="swatch" style="background:${w.css}"></span><span class="app-name">${w.name}</span>${i===state.wallpaperIndex?'<span class="tag">ĐANG DÙNG</span>':''}`;
+        row.addEventListener('click', ()=>{ state.wallpaperIndex=i; applyWallpaper(); renderSettings(); });
+        settingsBody.appendChild(row);
+      });
+    } else if(state.settingsTab === 2){
+      settingsBody.innerHTML = '<div class="set-hint">▲▼ chọn cỡ chữ, áp dụng ngay</div>';
+      textSizes.forEach((t,i)=>{
+        const row = document.createElement('div');
+        row.className = 'set-row' + (i===state.textSizeIndex?' selected':'');
+        row.innerHTML = `<span class="app-name" style="font-size:${11+i*2.5}px">${t}</span>${i===state.textSizeIndex?'<span class="tag">ĐANG DÙNG</span>':''}`;
+        row.addEventListener('click', ()=>{ state.textSizeIndex=i; applyTextSize(); renderSettings(); });
+        settingsBody.appendChild(row);
+      });
+    }
+  }
+  settingsTabs.addEventListener('click', e=>{
+    const t = e.target.closest('[data-tab]');
+    if(!t) return;
+    state.settingsTab = Number(t.dataset.tab);
+    renderSettings();
+  });
+
+  /* ---------- Lock / Notifications overlays ---------- */
+  function lockScreen(){
+    state.locked = true;
+    el('overlayLock').classList.add('show');
+    updateLockClock();
+  }
+  function unlockScreen(){
+    state.locked = false;
+    el('overlayLock').classList.remove('show');
+  }
+  function openNotifications(){
+    state.notifOpen = true;
+    const body = el('notifBody');
+    body.innerHTML = '<div class="notif-empty">Không có thông báo mới</div>';
+    el('overlayNotif').classList.add('show');
+  }
+  function closeNotifications(){
+    state.notifOpen = false;
+    el('overlayNotif').classList.remove('show');
+  }
+
+  function toggleSilent(){
+    state.silent = !state.silent;
+    el('silentIco').classList.toggle('on', state.silent);
+    showToast(state.silent ? 'Đã bật chế độ im lặng' : 'Đã tắt chế độ im lặng');
+  }
+
+  /* ---------- Input handling ---------- */
+  function handleShortPress(key){
+    if(key==='#'){
+      if(state.view==='drawer'){
+        state.searchQuery=''; state.lastKey=null; state.selDrawer=0; renderDrawer();
+      }
+      return;
+    }
+    if(state.view === 'home'){
+      const idx = parseInt(key,10);
+      if(idx>=1 && idx<=state.homeCount){
+        state.selHome = idx-1;
+        const appIdx = state.bindings[idx-1];
+        if(appIdx!=null) launchApp(apps[appIdx]); else showToast('Vị trí chưa gán app');
+        renderHome();
+      }
+      return;
+    }
+    if(state.view === 'drawer'){
+      if(key==='*'){
+        state.searchQuery = state.searchQuery.slice(0,-1);
+        state.lastKey = null; state.selDrawer = 0;
+        renderDrawer();
+        return;
+      }
+      const letters = T9[key];
+      if(!letters) return;
+      const now = Date.now();
+      if(state.lastKey === key && (now - state.lastKeyTime) < 700){
+        state.cycleIndex = (state.cycleIndex + 1) % letters.length;
+        state.searchQuery = state.searchQuery.slice(0,-1) + letters[state.cycleIndex];
+      } else {
+        state.cycleIndex = 0;
+        state.searchQuery += letters[0];
+      }
+      state.lastKey = key; state.lastKeyTime = now; state.selDrawer = 0;
+      renderDrawer();
+      return;
+    }
+    if(state.view === 'dialer'){
+      state.dialBuffer += key;
+      renderDialer();
+    }
+  }
+
+  function handleLongPress(key){
+    if(key==='#'){ toggleSilent(); return; }
+    if(!/^[0-9]$/.test(key)) return;
+    openDialer(key);
+    const btn = keygrid.querySelector(`[data-key="${key}"]`);
+    if(btn){ btn.classList.add('longfire'); setTimeout(()=>btn.classList.remove('longfire'), 200); }
+  }
+
+  function gatedInput(fn){
+    return function(...args){
+      if(state.locked){ unlockScreen(); return; }
+      if(state.notifOpen){ closeNotifications(); return; }
+      fn(...args);
+    };
+  }
+  const guardedShort = gatedInput(handleShortPress);
+  const guardedLong = gatedInput(handleLongPress);
+
+  // build keypad
+  const keys = ['1','2','3','4','5','6','7','8','9','*','0','#'];
+  keys.forEach(k=>{
+    const btn = document.createElement('div');
+    btn.className = 'key';
+    btn.dataset.key = k;
+    const lettersStr = T9[k] ? T9[k].join('').toUpperCase() : (k==='0' ? 'SPACE' : (k==='#' ? 'IM LẶNG' : ''));
+    btn.innerHTML = `<div class="digit">${k}</div><div class="letters">${lettersStr}</div>`;
+    let timer = null, longFired = false;
+    const start = (e)=>{ e.preventDefault(); longFired=false; timer=setTimeout(()=>{ longFired=true; guardedLong(k); },500); };
+    const end = ()=>{ clearTimeout(timer); if(!longFired) guardedShort(k); };
+    const cancel = ()=>{ clearTimeout(timer); };
+    btn.addEventListener('pointerdown', start);
+    btn.addEventListener('pointerup', end);
+    btn.addEventListener('pointerleave', cancel);
+    keygrid.appendChild(btn);
+  });
+
+  /* ---------- D-pad handlers ---------- */
+  function moveSelection(delta){
+    if(state.view==='home'){
+      const n = state.homeCount;
+      state.selHome = (state.selHome + delta + n) % n;
+      renderHome();
+    } else if(state.view==='drawer'){
+      const filtered = currentFilteredApps();
+      if(filtered.length===0) return;
+      state.selDrawer = (state.selDrawer + delta + filtered.length) % filtered.length;
+      renderDrawer();
+    } else if(state.view==='settings'){
+      if(state.settingsTab===0){
+        state.settingsSelBinding = (state.settingsSelBinding + delta + 9) % 9;
+        renderSettings();
+      } else if(state.settingsTab===1){
+        state.wallpaperIndex = (state.wallpaperIndex + delta + wallpapers.length) % wallpapers.length;
+        applyWallpaper(); renderSettings();
+      } else if(state.settingsTab===2){
+        state.textSizeIndex = Math.min(2, Math.max(0, state.textSizeIndex + delta));
+        applyTextSize(); renderSettings();
+      }
+    }
+  }
+  function switchSettingsTab(delta){
+    if(state.view!=='settings') return;
+    state.settingsTab = (state.settingsTab + delta + 3) % 3;
+    renderSettings();
+  }
+  function performCenterSingleAction(){
+    if(state.view==='home'){
+      const appIdx = state.bindings[state.selHome];
+      if(appIdx!=null) launchApp(apps[appIdx]); else showToast('Vị trí chưa gán app');
+    } else if(state.view==='drawer'){
+      const filtered = currentFilteredApps();
+      if(filtered[state.selDrawer]) launchApp(filtered[state.selDrawer]);
+    } else if(state.view==='settings' && state.settingsTab===0){
+      let cur = state.bindings[state.settingsSelBinding];
+      let next = (cur==null) ? 0 : (cur+1) % (apps.length+1);
+      state.bindings[state.settingsSelBinding] = (next===apps.length) ? null : next;
+      renderSettings(); renderHome();
+      showToast('Đã gán phím ' + (state.settingsSelBinding+1));
+    } else if(state.view==='settings'){
+      showToast('Đã lưu');
+    }
+  }
+  function handleCenterTap(){
+    const now = Date.now();
+    const delta = now - state.lastCenterTap;
+    if(delta > 0 && delta < 350){
+      clearTimeout(state.pendingCenterTimeout);
+      state.pendingCenterTimeout = null;
+      state.lastCenterTap = 0;
+      openNotifications();
+      return;
+    }
+    state.lastCenterTap = now;
+    state.pendingCenterTimeout = setTimeout(()=>{
+      performCenterSingleAction();
+      state.pendingCenterTimeout = null;
+    }, 350);
+  }
+
+  document.getElementById('navpad').addEventListener('click', e=>{
+    const target = e.target.closest('[data-nav]');
+    if(!target) return;
+    const nav = target.dataset.nav;
+    if(state.locked){ unlockScreen(); return; }
+    if(state.notifOpen && nav!=='key2'){ closeNotifications(); return; }
+    if(state.notifOpen && nav==='key2'){ closeNotifications(); return; }
+    switch(nav){
+      case 'key1': switchView('drawer'); state.selDrawer=0; renderDrawer(); break;
+      case 'key2':
+        if(state.view!=='home'){ state.searchQuery=''; state.lastKey=null; switchView('home'); renderHome(); }
+        break;
+      case 'key3': openDialer(''); break;
+      case 'key4':
+        if(state.view !== 'home'){
+          state.searchQuery=''; state.lastKey=null; switchView('home'); renderHome();
+        } else {
+          lockScreen();
+        }
+        break;
+      case 'up': moveSelection(-1); break;
+      case 'down': moveSelection(1); break;
+      case 'left': state.view==='settings' ? switchSettingsTab(-1) : moveSelection(-1); break;
+      case 'right': state.view==='settings' ? switchSettingsTab(1) : moveSelection(1); break;
+      case 'center': handleCenterTap(); break;
+    }
+  });
+
+  el('dialErase').addEventListener('click', ()=>{
+    state.dialBuffer = state.dialBuffer.slice(0,-1);
+    renderDialer();
+  });
+  el('dialCall').addEventListener('click', ()=>{
+    showToast(state.dialBuffer ? ('Đang gọi ' + state.dialBuffer + '…') : 'Chưa nhập số');
+  });
+
+  /* ---------- 5s hold on empty Home area -> Settings ---------- */
+  (function(){
+    const homeView = el('view-home');
+    let holdTimer = null, hintTimer = null;
+    const clear = ()=>{ clearTimeout(holdTimer); clearTimeout(hintTimer); holdHint.classList.remove('show'); };
+    homeView.addEventListener('pointerdown', e=>{
+      if(state.locked || state.notifOpen) return;
+      if(e.target.closest('.app-row')) return;
+      hintTimer = setTimeout(()=> holdHint.classList.add('show'), 700);
+      holdTimer = setTimeout(()=>{
+        clear();
+        switchView('settings');
+        renderSettings();
+        showToast('Cấu hình launcher');
+      }, 5000);
+    });
+    homeView.addEventListener('pointerup', clear);
+    homeView.addEventListener('pointerleave', clear);
+  })();
+
+  /* ---------- sidebar demo controls ---------- */
+  const deviceEl = document.querySelector('.device');
+  const profileMeta = el('profileMeta');
+  function setProfile(profile){
+    state.profile = profile;
+    deviceEl.classList.toggle('profile-28', profile==='28');
+    el('profile28').classList.toggle('active', profile==='28');
+    el('profile35').classList.toggle('active', profile==='35');
+    profileMeta.textContent = profile==='28'
+      ? '240 × 320 px · ưu tiên chữ lớn, 4 app'
+      : '320 × 480 px · giao diện đầy đủ';
+    state.homeCount = profile==='28' ? Math.min(state.homeCount, 4) : state.homeCount;
+    el('countVal').textContent = state.homeCount;
+    renderHome();
+    showToast(profile==='28' ? 'Đang xem cấu hình 2.8″' : 'Đang xem cấu hình 3.5″');
+  }
+  el('profile28').addEventListener('click', ()=>setProfile('28'));
+  el('profile35').addEventListener('click', ()=>setProfile('35'));
+  el('countMinus').addEventListener('click', ()=>{
+    state.homeCount = Math.max(1, state.homeCount-1);
+    if(state.selHome >= state.homeCount) state.selHome = state.homeCount-1;
+    el('countVal').textContent = state.homeCount;
+    renderHome();
+  });
+  el('countPlus').addEventListener('click', ()=>{
+    state.homeCount = Math.min(state.profile==='28' ? 4 : 9, state.homeCount+1);
+    el('countVal').textContent = state.homeCount;
+    renderHome();
+  });
+  el('alignLeft').addEventListener('click', ()=>{
+    state.align='left'; el('alignLeft').classList.add('active'); el('alignRight').classList.remove('active'); renderHome();
+  });
+  el('alignRight').addEventListener('click', ()=>{
+    state.align='right'; el('alignRight').classList.add('active'); el('alignLeft').classList.remove('active'); renderHome();
+  });
+
+  /* ---------- clock ---------- */
+  const days = ['CN','T2','T3','T4','T5','T6','T7'];
+  function fmtDate(now){
+    return days[now.getDay()] + ', ' + String(now.getDate()).padStart(2,'0') + '/' + String(now.getMonth()+1).padStart(2,'0');
+  }
+  function tick(){
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2,'0');
+    const mm = String(now.getMinutes()).padStart(2,'0');
+    el('clockTime').textContent = hh+':'+mm;
+    el('clockDate').textContent = fmtDate(now);
+    el('statusDate').textContent = fmtDate(now);
+    updateLockClock();
+  }
+  function updateLockClock(){
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2,'0');
+    const mm = String(now.getMinutes()).padStart(2,'0');
+    el('lockTime').textContent = hh+':'+mm;
+    el('lockDate').textContent = fmtDate(now);
+  }
+  tick(); setInterval(tick, 1000);
+
+  renderHome();
+  renderDrawer();
+  renderDialer();
+  renderSettings();
+})();
+</script>
+</body>
+</html>
