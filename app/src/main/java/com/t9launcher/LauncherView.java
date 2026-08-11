@@ -37,13 +37,18 @@ import java.util.List;
 import java.util.Locale;
 
 public final class LauncherView extends View {
-    private static final int SETTINGS_ROW_COUNT = 6;
+    private static final int SETTINGS_ROW_COUNT = 7;
+    private static final int SETTING_HOME_KEY_BEHAVIOR = 4;
+    private static final int SETTING_SWIPE_LEFT_TO_RIGHT = 5;
+    private static final int SETTING_SWIPE_RIGHT_TO_LEFT = 6;
     private static final float SETTINGS_FIRST_BASELINE_DP = 104f;
     private static final float SETTINGS_SECTION_GAP_DP = 34f;
     private static final float SETTINGS_BOTTOM_PADDING_DP = 44f;
     private static final int ACTION_NONE = -1;
     private static final int ACTION_CONTACTS = -2;
     private static final int ACTION_MESSAGING = -3;
+    private static final int HOME_KEYS_QUICK_ACTION = 0;
+    private static final int HOME_KEYS_DIALER = 1;
     private static final int PICKER_HOME_SLOT = 0;
     private static final int PICKER_SWIPE_LEFT_TO_RIGHT = 1;
     private static final int PICKER_SWIPE_RIGHT_TO_LEFT = 2;
@@ -96,6 +101,7 @@ public final class LauncherView extends View {
     private int wallpaperIndex = 0;
     private int fontSizeSp = 14;
     private boolean showStatusBar = true;
+    private int homeKeyBehavior = HOME_KEYS_QUICK_ACTION;
     private int swipeLeftToRightAction = ACTION_CONTACTS;
     private int swipeRightToLeftAction = ACTION_MESSAGING;
     private final int[] bindings = new int[9];
@@ -503,7 +509,8 @@ public final class LauncherView extends View {
         mono(c, "CẤU HÌNH LAUNCHER", dp(16), dp(44), fontSizeSp, amber);
         drawSettingsHint(c);
         String[] rows = {"Màu / wallpaper", "Cỡ chữ", "Số app ở Home",
-                "Hiển thị Thanh thông báo", "Vuốt trái → phải", "Vuốt phải → trái"};
+                "Hiển thị Thanh thông báo", "Phím số ở Home",
+                "Vuốt trái → phải", "Vuốt phải → trái"};
         int total = rows.length + homeCount;
         settingsSelection = Math.max(0, Math.min(total - 1, settingsSelection));
         settingsOffset = keepSettingsSelectionVisible(settingsSelection, total, settingsOffset);
@@ -576,12 +583,14 @@ public final class LauncherView extends View {
     }
 
     private boolean isSettingsSectionStart(int index) {
-        return index == 0 || index == 4 || index == SETTINGS_ROW_COUNT;
+        return index == 0 || index == SETTING_HOME_KEY_BEHAVIOR
+                || index == SETTING_SWIPE_LEFT_TO_RIGHT || index == SETTINGS_ROW_COUNT;
     }
 
     private String settingsSectionTitle(int index) {
         if (index == 0) return "HIỂN THỊ";
-        if (index == 4) return "CỬ CHỈ HOME";
+        if (index == SETTING_HOME_KEY_BEHAVIOR) return "BÀN PHÍM T9 HOME";
+        if (index == SETTING_SWIPE_LEFT_TO_RIGHT) return "CỬ CHỈ HOME";
         return "ỨNG DỤNG HOME";
     }
 
@@ -677,7 +686,10 @@ public final class LauncherView extends View {
         if (row == 1) return fontSizeSp + " sp";
         if (row == 2) return String.valueOf(homeCount);
         if (row == 3) return showStatusBar ? "[x]" : "[ ]";
-        if (row == 4) return actionLabel(swipeLeftToRightAction);
+        if (row == SETTING_HOME_KEY_BEHAVIOR) {
+            return homeKeyBehavior == HOME_KEYS_QUICK_ACTION ? "Quick action" : "Quay số";
+        }
+        if (row == SETTING_SWIPE_LEFT_TO_RIGHT) return actionLabel(swipeLeftToRightAction);
         return actionLabel(swipeRightToLeftAction);
     }
 
@@ -762,6 +774,8 @@ public final class LauncherView extends View {
         wallpaperIndex = Math.max(0, Math.min(3, settings.getInt("wallpaper", 0)));
         fontSizeSp = Math.max(12, Math.min(36, settings.getInt("fontSizeSp", 14)));
         showStatusBar = settings.getBoolean("showStatusBar", true);
+        homeKeyBehavior = settings.getInt("homeKeyBehavior", HOME_KEYS_QUICK_ACTION);
+        if (homeKeyBehavior != HOME_KEYS_DIALER) homeKeyBehavior = HOME_KEYS_QUICK_ACTION;
         swipeLeftToRightAction = settings.getInt("swipeLeftToRightAction", ACTION_CONTACTS);
         swipeRightToLeftAction = settings.getInt("swipeRightToLeftAction", ACTION_MESSAGING);
         for (int i = 0; i < bindings.length; i++) bindings[i] = settings.getInt("binding" + i, i);
@@ -774,6 +788,7 @@ public final class LauncherView extends View {
                 .putInt("wallpaper", wallpaperIndex)
                 .putInt("fontSizeSp", fontSizeSp)
                 .putBoolean("showStatusBar", showStatusBar)
+                .putInt("homeKeyBehavior", homeKeyBehavior)
                 .putInt("swipeLeftToRightAction", swipeLeftToRightAction)
                 .putInt("swipeRightToLeftAction", swipeRightToLeftAction);
         for (int i = 0; i < bindings.length; i++) editor.putInt("binding" + i, bindings[i]);
@@ -787,6 +802,9 @@ public final class LauncherView extends View {
             fontSizeSp = Math.max(12, Math.min(36, fontSizeSp + delta));
         } else if (settingsSelection == 2) {
             homeCount = Math.max(1, Math.min(9, homeCount + delta));
+        } else if (settingsSelection == SETTING_HOME_KEY_BEHAVIOR) {
+            homeKeyBehavior = homeKeyBehavior == HOME_KEYS_QUICK_ACTION
+                    ? HOME_KEYS_DIALER : HOME_KEYS_QUICK_ACTION;
         } else {
             return false;
         }
@@ -803,10 +821,15 @@ public final class LauncherView extends View {
             showStatusBar = !showStatusBar;
             ((MainActivity) getContext()).setStatusBarVisible(showStatusBar);
         }
-        else if (settingsSelection == 4 || settingsSelection == 5) {
-            pickerTarget = settingsSelection == 4
+        else if (settingsSelection == SETTING_HOME_KEY_BEHAVIOR) {
+            homeKeyBehavior = homeKeyBehavior == HOME_KEYS_QUICK_ACTION
+                    ? HOME_KEYS_DIALER : HOME_KEYS_QUICK_ACTION;
+        }
+        else if (settingsSelection == SETTING_SWIPE_LEFT_TO_RIGHT
+                || settingsSelection == SETTING_SWIPE_RIGHT_TO_LEFT) {
+            pickerTarget = settingsSelection == SETTING_SWIPE_LEFT_TO_RIGHT
                     ? PICKER_SWIPE_LEFT_TO_RIGHT : PICKER_SWIPE_RIGHT_TO_LEFT;
-            int current = settingsSelection == 4
+            int current = settingsSelection == SETTING_SWIPE_LEFT_TO_RIGHT
                     ? swipeLeftToRightAction : swipeRightToLeftAction;
             pickerSelection = pickerSelectionForAction(current);
             pickerOffset = 0;
@@ -927,9 +950,14 @@ public final class LauncherView extends View {
             else goHome();
             return;
         }
-        if (screen == 0 && key.matches("[1-9]")) {
-            selected = Math.min(homeCount - 1, Integer.parseInt(key) - 1);
-            launchSlot();
+        if (screen == 0 && key.matches("[0-9]")) {
+            int digit = Integer.parseInt(key);
+            if (homeKeyBehavior == HOME_KEYS_DIALER || digit == 0) {
+                ((MainActivity) getContext()).openSystemDialer(key);
+            } else if (digit <= homeCount) {
+                selected = digit - 1;
+                launchSlot();
+            }
             return;
         }
         if (screen == 1) {
@@ -979,10 +1007,10 @@ public final class LauncherView extends View {
             settingsSelection = bindingSlot + SETTINGS_ROW_COUNT;
         } else if (pickerTarget == PICKER_SWIPE_LEFT_TO_RIGHT) {
             swipeLeftToRightAction = actionForPickerSelection();
-            settingsSelection = 4;
+            settingsSelection = SETTING_SWIPE_LEFT_TO_RIGHT;
         } else {
             swipeRightToLeftAction = actionForPickerSelection();
-            settingsSelection = 5;
+            settingsSelection = SETTING_SWIPE_RIGHT_TO_LEFT;
         }
         savePrefs();
         screen = 3;

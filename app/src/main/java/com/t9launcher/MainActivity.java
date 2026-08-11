@@ -18,6 +18,7 @@ import android.os.SystemClock;
 import android.provider.ContactsContract;
 import android.provider.Settings;
 import android.provider.Telephony;
+import android.telecom.TelecomManager;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Window;
@@ -217,15 +218,31 @@ public final class MainActivity extends Activity {
     }
 
     public void openSystemDialer() {
+        openSystemDialer("");
+    }
+
+    public void openSystemDialer(String initialNumber) {
+        String number = initialNumber == null ? "" : initialNumber;
+        Intent dialIntent = new Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", number, null));
+        TelecomManager telecom = (TelecomManager) getSystemService(TELECOM_SERVICE);
+        String defaultDialer = telecom == null ? null : telecom.getDefaultDialerPackage();
+        if (defaultDialer != null && !defaultDialer.isEmpty()) {
+            dialIntent.setPackage(defaultDialer);
+        }
         try {
-            startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:")));
-        } catch (ActivityNotFoundException missingDialer) {
+            startActivity(dialIntent);
+        } catch (ActivityNotFoundException missingDefaultDialer) {
             try {
-                Intent dialer = new Intent(Intent.ACTION_MAIN);
-                dialer.addCategory("android.intent.category.APP_DIALER");
-                startActivity(dialer);
-            } catch (ActivityNotFoundException missingPhoneApp) {
-                Toast.makeText(this, "Không tìm thấy ứng dụng Điện thoại", Toast.LENGTH_LONG).show();
+                dialIntent.setPackage(null);
+                startActivity(dialIntent);
+            } catch (ActivityNotFoundException missingDialer) {
+                try {
+                    Intent dialer = new Intent(Intent.ACTION_MAIN);
+                    dialer.addCategory("android.intent.category.APP_DIALER");
+                    startActivity(dialer);
+                } catch (ActivityNotFoundException missingPhoneApp) {
+                    Toast.makeText(this, "Không tìm thấy ứng dụng Điện thoại", Toast.LENGTH_LONG).show();
+                }
             }
         }
     }
