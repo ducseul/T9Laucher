@@ -1,11 +1,8 @@
-package com.t9launcher;
+package com.t9launcher.ui;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
-import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -14,28 +11,35 @@ import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Handler;
 import android.os.SystemClock;
-import android.text.Editable;
-import android.text.InputType;
-import android.text.Selection;
-import android.text.SpannableStringBuilder;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
-import android.view.inputmethod.InputMethodManager;
 
-import java.text.Collator;
-import java.text.Normalizer;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import com.t9launcher.apps.AppRepository;
+import com.t9launcher.apps.InstalledAppRepository;
+import com.t9launcher.data.LauncherSettingsStore;
+import com.t9launcher.data.SharedPreferencesLauncherSettingsStore;
+import com.t9launcher.input.DrawerTextInput;
+import com.t9launcher.input.LauncherKey;
+import com.t9launcher.model.LauncherConfiguration;
+import com.t9launcher.system.LauncherActions;
+
+import static com.t9launcher.model.LauncherConfiguration.ACTION_CONTACTS;
+import static com.t9launcher.model.LauncherConfiguration.ACTION_MESSAGING;
+import static com.t9launcher.model.LauncherConfiguration.ACTION_NONE;
+import static com.t9launcher.model.LauncherConfiguration.HOME_KEYS_DIALER;
+import static com.t9launcher.model.LauncherConfiguration.HOME_KEYS_QUICK_ACTION;
+
+@SuppressLint("ViewConstructor")
 public final class LauncherView extends View {
     private static final int SETTINGS_ROW_COUNT = 7;
     private static final int SETTING_HOME_KEY_BEHAVIOR = 4;
@@ -44,11 +48,6 @@ public final class LauncherView extends View {
     private static final float SETTINGS_FIRST_BASELINE_DP = 104f;
     private static final float SETTINGS_SECTION_GAP_DP = 34f;
     private static final float SETTINGS_BOTTOM_PADDING_DP = 44f;
-    private static final int ACTION_NONE = -1;
-    private static final int ACTION_CONTACTS = -2;
-    private static final int ACTION_MESSAGING = -3;
-    private static final int HOME_KEYS_QUICK_ACTION = 0;
-    private static final int HOME_KEYS_DIALER = 1;
     private static final int PICKER_HOME_SLOT = 0;
     private static final int PICKER_SWIPE_LEFT_TO_RIGHT = 1;
     private static final int PICKER_SWIPE_RIGHT_TO_LEFT = 2;
@@ -82,10 +81,11 @@ public final class LauncherView extends View {
 
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final float d;
-    private final Collator vietnameseAppCollator = Collator.getInstance(
-            new Locale("vi", "VN"));
+    private final LauncherActions actions;
+    private final LauncherSettingsStore settingsStore;
+    private final AppRepository appRepository;
     private final List<ActivityInfo> apps = new ArrayList<>();
-    private int screen = 0; // 0 home, 1 drawer, 3 settings, 4 app picker
+    private LauncherScreen screen = LauncherScreen.HOME;
     private int selected = 0;
     private int settingsSelection = 0;
     private int homeOffset = 0;
@@ -105,13 +105,13 @@ public final class LauncherView extends View {
     private int swipeLeftToRightAction = ACTION_CONTACTS;
     private int swipeRightToLeftAction = ACTION_MESSAGING;
     private final int[] bindings = new int[9];
-    private final Editable query = new SpannableStringBuilder();
+    private final DrawerTextInput drawerTextInput;
     private boolean locked;
     private boolean silent;
     private float touchDownX;
     private float touchDownY;
     private float touchLastY;
-    private int touchScreen;
+    private LauncherScreen touchScreen;
     private int touchIndex = -1;
     private boolean touchMoved;
     private boolean holdTriggered;
@@ -119,20 +119,41 @@ public final class LauncherView extends View {
     private Runnable holdAction;
     private final int amber = Color.rgb(255, 180, 84);
 
-    public LauncherView(Context c) {
+    public LauncherView(Context c, LauncherActions actions) {
+        this(c, actions, new SharedPreferencesLauncherSettingsStore(c),
+                new InstalledAppRepository(c));
+    }
+
+    LauncherView(Context c, LauncherActions actions,
+                 LauncherSettingsStore settingsStore, AppRepository appRepository) {
         super(c);
+        this.actions = actions;
+        this.settingsStore = settingsStore;
+        this.appRepository = appRepository;
+        drawerTextInput = new DrawerTextInput(this, new DrawerTextInput.Listener() {
+            @Override
+            public void onQueryChanged() {
+                selected = 0;
+                drawerOffset = 0;
+                invalidate();
+            }
+
+            @Override
+            public void onSubmit() {
+                launchSelected();
+            }
+        });
         d = getResources().getDisplayMetrics().density;
         setFocusable(true);
         setFocusableInTouchMode(true);
         requestFocus();
-        Selection.setSelection(query, 0);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             setDefaultFocusHighlightEnabled(false);
         }
         for (int i = 0; i < bindings.length; i++) bindings[i] = i;
         loadPrefs();
         loadApps();
-        silent = ((MainActivity) c).isVibrateMode();
+        silent = actions.isVibrateMode();
     }
 
     private float dp(float n) {
@@ -141,7 +162,7 @@ public final class LauncherView extends View {
 
     public void refreshApps() {
         loadApps();
-        if (screen == 1) {
+        if (screen == LauncherScreen.DRAWER) {
             int count = drawerApps().size();
             selected = count == 0 ? 0 : Math.min(selected, count - 1);
         }
@@ -153,17 +174,17 @@ public final class LauncherView extends View {
     }
 
     public void goHome() {
-        if (screen == 3 || screen == 4) savePrefs();
+        if (screen == LauncherScreen.SETTINGS || screen == LauncherScreen.APP_PICKER) savePrefs();
         locked = false;
-        screen = 0;
+        screen = LauncherScreen.HOME;
         settingsHintScrollStartedAt = 0L;
-        query.clear();
-        refreshTextInput();
+        drawerTextInput.clear();
+        drawerTextInput.refresh(false);
         invalidate();
     }
 
     public boolean isDrawerTextInputActive() {
-        return screen == 1 && !locked;
+        return screen == LauncherScreen.DRAWER && !locked;
     }
 
     @Override
@@ -174,134 +195,18 @@ public final class LauncherView extends View {
     @Override
     public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
         if (!isDrawerTextInputActive()) return null;
-        outAttrs.inputType = InputType.TYPE_CLASS_TEXT
-                | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES;
-        outAttrs.imeOptions = EditorInfo.IME_ACTION_DONE
-                | EditorInfo.IME_FLAG_NO_EXTRACT_UI;
-        outAttrs.initialSelStart = Selection.getSelectionStart(query);
-        outAttrs.initialSelEnd = Selection.getSelectionEnd(query);
-        return new BaseInputConnection(this, true) {
-            @Override
-            public Editable getEditable() {
-                return query;
-            }
-
-            @Override
-            public boolean commitText(CharSequence text, int newCursorPosition) {
-                boolean handled = super.commitText(text, newCursorPosition);
-                onQueryChanged();
-                return handled;
-            }
-
-            @Override
-            public boolean setComposingText(CharSequence text, int newCursorPosition) {
-                boolean handled = super.setComposingText(text, newCursorPosition);
-                onQueryChanged();
-                return handled;
-            }
-
-            @Override
-            public boolean deleteSurroundingText(int beforeLength, int afterLength) {
-                boolean handled = super.deleteSurroundingText(beforeLength, afterLength);
-                onQueryChanged();
-                return handled;
-            }
-
-            @Override
-            public boolean performEditorAction(int actionCode) {
-                if (actionCode == EditorInfo.IME_ACTION_DONE) {
-                    launchSelected();
-                    return true;
-                }
-                return super.performEditorAction(actionCode);
-            }
-        };
+        return drawerTextInput.createInputConnection(outAttrs);
     }
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (!isDrawerTextInputActive()) return super.onKeyDown(keyCode, event);
-        if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
-                || keyCode == KeyEvent.KEYCODE_ENTER
-                || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
-            launchSelected();
-            return true;
-        }
-        if (keyCode == KeyEvent.KEYCODE_DEL) {
-            deleteQueryCharacter();
-            return true;
-        }
-        if (keyCode == KeyEvent.KEYCODE_STAR) {
-            deleteQueryCharacter();
-            return true;
-        }
-        if (keyCode == KeyEvent.KEYCODE_POUND) {
-            query.clear();
-            onQueryChanged();
-            return true;
-        }
-        int unicode = event.getUnicodeChar();
-        if (unicode != 0 && (Character.isLetter(unicode) || Character.isWhitespace(unicode))) {
-            replaceQuerySelection(new String(Character.toChars(unicode)));
-            return true;
-        }
-        // Raw number keys must be left for the configured T9 IME (for example QinVN).
-        return keyCode >= KeyEvent.KEYCODE_0 && keyCode <= KeyEvent.KEYCODE_9;
-    }
-
-    private void replaceQuerySelection(CharSequence text) {
-        int start = Math.max(0, Selection.getSelectionStart(query));
-        int end = Math.max(0, Selection.getSelectionEnd(query));
-        query.replace(Math.min(start, end), Math.max(start, end), text);
-        Selection.setSelection(query, Math.min(start, end) + text.length());
-        onQueryChanged();
-    }
-
-    private void deleteQueryCharacter() {
-        int start = Math.max(0, Selection.getSelectionStart(query));
-        int end = Math.max(0, Selection.getSelectionEnd(query));
-        if (start != end) {
-            query.delete(Math.min(start, end), Math.max(start, end));
-            Selection.setSelection(query, Math.min(start, end));
-        } else if (start > 0) {
-            int previous = Character.offsetByCodePoints(query, start, -1);
-            query.delete(previous, start);
-            Selection.setSelection(query, previous);
-        }
-        onQueryChanged();
-    }
-
-    private void onQueryChanged() {
-        selected = 0;
-        drawerOffset = 0;
-        invalidate();
-    }
-
-    private void refreshTextInput() {
-        requestFocus();
-        post(() -> {
-            InputMethodManager input = (InputMethodManager) getContext()
-                    .getSystemService(Context.INPUT_METHOD_SERVICE);
-            if (input == null) return;
-            input.restartInput(this);
-            if (isDrawerTextInputActive()) {
-                input.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT);
-            } else {
-                input.hideSoftInputFromWindow(getWindowToken(), 0);
-            }
-        });
+        return drawerTextInput.onKeyDown(keyCode, event);
     }
 
     private void loadApps() {
-        Intent intent = new Intent(Intent.ACTION_MAIN);
-        intent.addCategory(Intent.CATEGORY_LAUNCHER);
-        List<ResolveInfo> found = getContext().getPackageManager()
-                .queryIntentActivities(intent, PackageManager.MATCH_ALL);
         apps.clear();
-        for (ResolveInfo result : found) {
-            ActivityInfo app = result.activityInfo;
-            if (!app.packageName.equals(getContext().getPackageName())) apps.add(app);
-        }
+        apps.addAll(appRepository.loadLaunchableApps());
     }
 
     @Override
@@ -313,10 +218,10 @@ public final class LauncherView extends View {
             return;
         }
         drawStatus(c);
-        if (screen == 0) drawHome(c);
-        else if (screen == 1) drawDrawer(c);
-        else if (screen == 3) drawSettings(c);
-        else if (screen == 4) drawAppPicker(c);
+        if (screen == LauncherScreen.HOME) drawHome(c);
+        else if (screen == LauncherScreen.DRAWER) drawDrawer(c);
+        else if (screen == LauncherScreen.SETTINGS) drawSettings(c);
+        else if (screen == LauncherScreen.APP_PICKER) drawAppPicker(c);
         else drawHome(c);
     }
 
@@ -443,9 +348,9 @@ public final class LauncherView extends View {
         c.drawRoundRect(new RectF(dp(inset), dp(searchTop), getWidth() - dp(inset),
                 dp(searchBottom)), 10f, 10f, p);
         mono(c, "T9", 35f, 94f, 15, amber);
-        text(c, query.length() == 0 ? "Tìm app…" : query.toString(), 78f, 94f,
+        text(c, drawerTextInput.isEmpty() ? "Tìm app…" : drawerTextInput.text().toString(), 78f, 94f,
                 Math.max(14, Math.min(20, fontSizeSp - 3)),
-                query.length() == 0 ? Color.rgb(170, 169, 173) : Color.WHITE);
+                drawerTextInput.isEmpty() ? Color.rgb(170, 169, 173) : Color.WHITE);
         p.setTextAlign(Paint.Align.RIGHT);
         text(c, "Quay lại", getWidth() - dp(12), getHeight() - dp(8), 12, amber);
         p.setTextAlign(Paint.Align.LEFT);
@@ -734,24 +639,11 @@ public final class LauncherView extends View {
     }
 
     private String appLabel(ActivityInfo app) {
-        return app.loadLabel(getContext().getPackageManager()).toString();
+        return appRepository.label(app);
     }
 
     private List<ActivityInfo> drawerApps() {
-        List<ActivityInfo> filtered = new ArrayList<>();
-        String normalizedQuery = norm(query.toString());
-        for (ActivityInfo app : apps) {
-            String label = appLabel(app);
-            if (normalizedQuery.length() == 0 || norm(label).contains(normalizedQuery)) filtered.add(app);
-        }
-        Collections.sort(filtered, (left, right) -> {
-            int byLabel = vietnameseAppCollator.compare(appLabel(left), appLabel(right));
-            if (byLabel != 0) return byLabel;
-            int byPackage = left.packageName.compareToIgnoreCase(right.packageName);
-            if (byPackage != 0) return byPackage;
-            return left.name.compareToIgnoreCase(right.name);
-        });
-        return filtered;
+        return appRepository.filterAndSort(apps, drawerTextInput.text());
     }
 
     private int visibleRows(int firstBaselineDp, int rowStepDp, int bottomPaddingDp) {
@@ -769,30 +661,22 @@ public final class LauncherView extends View {
     }
 
     private void loadPrefs() {
-        SharedPreferences settings = getContext().getSharedPreferences("launcher", Context.MODE_PRIVATE);
-        homeCount = Math.max(1, Math.min(9, settings.getInt("homeCount", 4)));
-        wallpaperIndex = Math.max(0, Math.min(3, settings.getInt("wallpaper", 0)));
-        fontSizeSp = Math.max(12, Math.min(36, settings.getInt("fontSizeSp", 14)));
-        showStatusBar = settings.getBoolean("showStatusBar", true);
-        homeKeyBehavior = settings.getInt("homeKeyBehavior", HOME_KEYS_QUICK_ACTION);
-        if (homeKeyBehavior != HOME_KEYS_DIALER) homeKeyBehavior = HOME_KEYS_QUICK_ACTION;
-        swipeLeftToRightAction = settings.getInt("swipeLeftToRightAction", ACTION_CONTACTS);
-        swipeRightToLeftAction = settings.getInt("swipeRightToLeftAction", ACTION_MESSAGING);
-        for (int i = 0; i < bindings.length; i++) bindings[i] = settings.getInt("binding" + i, i);
+        LauncherConfiguration configuration = settingsStore.load();
+        homeCount = configuration.homeCount;
+        wallpaperIndex = configuration.wallpaperIndex;
+        fontSizeSp = configuration.fontSizeSp;
+        showStatusBar = configuration.showStatusBar;
+        homeKeyBehavior = configuration.homeKeyBehavior;
+        swipeLeftToRightAction = configuration.swipeLeftToRightAction;
+        swipeRightToLeftAction = configuration.swipeRightToLeftAction;
+        System.arraycopy(configuration.bindings, 0, bindings, 0, bindings.length);
     }
 
     private void savePrefs() {
-        SharedPreferences.Editor editor = getContext()
-                .getSharedPreferences("launcher", Context.MODE_PRIVATE).edit();
-        editor.putInt("homeCount", homeCount)
-                .putInt("wallpaper", wallpaperIndex)
-                .putInt("fontSizeSp", fontSizeSp)
-                .putBoolean("showStatusBar", showStatusBar)
-                .putInt("homeKeyBehavior", homeKeyBehavior)
-                .putInt("swipeLeftToRightAction", swipeLeftToRightAction)
-                .putInt("swipeRightToLeftAction", swipeRightToLeftAction);
-        for (int i = 0; i < bindings.length; i++) editor.putInt("binding" + i, bindings[i]);
-        editor.apply();
+        settingsStore.save(new LauncherConfiguration(
+                homeCount, wallpaperIndex, fontSizeSp, showStatusBar,
+                homeKeyBehavior, swipeLeftToRightAction, swipeRightToLeftAction,
+                bindings));
     }
 
     private boolean adjustSelectedSetting(int delta) {
@@ -819,7 +703,7 @@ public final class LauncherView extends View {
         else if (settingsSelection == 2) homeCount = homeCount % 9 + 1;
         else if (settingsSelection == 3) {
             showStatusBar = !showStatusBar;
-            ((MainActivity) getContext()).setStatusBarVisible(showStatusBar);
+            actions.setStatusBarVisible(showStatusBar);
         }
         else if (settingsSelection == SETTING_HOME_KEY_BEHAVIOR) {
             homeKeyBehavior = homeKeyBehavior == HOME_KEYS_QUICK_ACTION
@@ -833,7 +717,7 @@ public final class LauncherView extends View {
                     ? swipeLeftToRightAction : swipeRightToLeftAction;
             pickerSelection = pickerSelectionForAction(current);
             pickerOffset = 0;
-            screen = 4;
+            screen = LauncherScreen.APP_PICKER;
         }
         else {
             pickerTarget = PICKER_HOME_SLOT;
@@ -841,23 +725,17 @@ public final class LauncherView extends View {
             int current = bindings[bindingSlot];
             pickerSelection = current >= 0 && current < apps.size() ? current + 1 : 0;
             pickerOffset = 0;
-            screen = 4;
+            screen = LauncherScreen.APP_PICKER;
         }
         savePrefs();
         invalidate();
     }
 
-    private static String norm(String s) {
-        return Normalizer.normalize(s, Normalizer.Form.NFD)
-                .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "")
-                .toLowerCase(Locale.US);
-    }
-
-    public void onKey(String key, boolean hold) {
-        if (key.equals("corner3")) {
+    public void onKey(LauncherKey key, boolean hold) {
+        if (key == LauncherKey.CORNER_3) {
             locked = false;
             savePrefs();
-            ((MainActivity) getContext()).openSystemDialer();
+            actions.openDialer();
             return;
         }
         if (locked) {
@@ -865,106 +743,108 @@ public final class LauncherView extends View {
             invalidate();
             return;
         }
-        if (hold && key.equals("#")) {
-            silent = ((MainActivity) getContext()).toggleRingerMode();
+        if (hold && key == LauncherKey.POUND) {
+            silent = actions.toggleRingerMode();
             invalidate();
             return;
         }
-        if (key.equals("back") || key.equals("corner2")) {
-            if (screen == 4) {
-                screen = 3;
+        if (key == LauncherKey.BACK || key == LauncherKey.CORNER_2) {
+            if (screen == LauncherScreen.APP_PICKER) {
+                screen = LauncherScreen.SETTINGS;
                 invalidate();
                 return;
             }
-            if (screen != 0) {
-                if (screen == 3) savePrefs();
-                screen = 0;
-                query.clear();
-                refreshTextInput();
+            if (screen != LauncherScreen.HOME) {
+                if (screen == LauncherScreen.SETTINGS) savePrefs();
+                screen = LauncherScreen.HOME;
+                drawerTextInput.clear();
+                drawerTextInput.refresh(false);
                 invalidate();
             }
             return;
         }
-        if (key.equals("hangup")) {
-            goHome();
-            return;
+        if (screen == LauncherScreen.SETTINGS
+                && (key == LauncherKey.LEFT || key == LauncherKey.RIGHT)) {
+            if (adjustSelectedSetting(key == LauncherKey.LEFT ? -1 : 1)) return;
         }
-        if (screen == 3 && (key.equals("left") || key.equals("right"))) {
-            if (adjustSelectedSetting(key.equals("left") ? -1 : 1)) return;
-        }
-        if (screen == 3 && (key.equals("up") || key.equals("left"))) {
+        if (screen == LauncherScreen.SETTINGS
+                && (key == LauncherKey.UP || key == LauncherKey.LEFT)) {
             int limit = SETTINGS_ROW_COUNT + homeCount;
             settingsSelection = (settingsSelection - 1 + limit) % limit;
             invalidate();
             return;
         }
-        if (screen == 3 && (key.equals("down") || key.equals("right"))) {
+        if (screen == LauncherScreen.SETTINGS
+                && (key == LauncherKey.DOWN || key == LauncherKey.RIGHT)) {
             int limit = SETTINGS_ROW_COUNT + homeCount;
             settingsSelection = (settingsSelection + 1) % limit;
             invalidate();
             return;
         }
-        if (screen == 4 && (key.equals("up") || key.equals("left"))) {
+        if (screen == LauncherScreen.APP_PICKER
+                && (key == LauncherKey.UP || key == LauncherKey.LEFT)) {
             int limit = pickerItemCount();
             pickerSelection = (pickerSelection - 1 + limit) % limit;
             invalidate();
             return;
         }
-        if (screen == 4 && (key.equals("down") || key.equals("right"))) {
+        if (screen == LauncherScreen.APP_PICKER
+                && (key == LauncherKey.DOWN || key == LauncherKey.RIGHT)) {
             int limit = pickerItemCount();
             pickerSelection = (pickerSelection + 1) % limit;
             invalidate();
             return;
         }
-        if ((screen == 0 || screen == 1) && (key.equals("up") || key.equals("left"))) {
-            int limit = screen == 0 ? homeCount : Math.max(1, drawerApps().size());
+        if ((screen == LauncherScreen.HOME || screen == LauncherScreen.DRAWER)
+                && (key == LauncherKey.UP || key == LauncherKey.LEFT)) {
+            int limit = screen == LauncherScreen.HOME
+                    ? homeCount : Math.max(1, drawerApps().size());
             selected = (selected - 1 + limit) % limit;
             invalidate();
             return;
         }
-        if ((screen == 0 || screen == 1) && (key.equals("down") || key.equals("right"))) {
-            int limit = screen == 0 ? homeCount : Math.max(1, drawerApps().size());
+        if ((screen == LauncherScreen.HOME || screen == LauncherScreen.DRAWER)
+                && (key == LauncherKey.DOWN || key == LauncherKey.RIGHT)) {
+            int limit = screen == LauncherScreen.HOME
+                    ? homeCount : Math.max(1, drawerApps().size());
             selected = (selected + 1) % limit;
             invalidate();
             return;
         }
-        if (key.equals("ok")) {
-            if (screen == 0) launchSlot();
-            else if (screen == 1) launchSelected();
-            else if (screen == 3) changeSetting();
-            else if (screen == 4) {
-                confirmPickerSelection();
-            }
+        if (key == LauncherKey.OK) {
+            if (screen == LauncherScreen.HOME) launchSlot();
+            else if (screen == LauncherScreen.DRAWER) launchSelected();
+            else if (screen == LauncherScreen.SETTINGS) changeSetting();
+            else if (screen == LauncherScreen.APP_PICKER) confirmPickerSelection();
             return;
         }
-        if (key.equals("corner1")) {
-            screen = 1;
+        if (key == LauncherKey.CORNER_1) {
+            screen = LauncherScreen.DRAWER;
             selected = 0;
             drawerOffset = 0;
-            refreshTextInput();
+            drawerTextInput.refresh(true);
             invalidate();
             return;
         }
-        if (key.equals("corner4")) {
-            if (screen == 0) ((MainActivity) getContext()).lockDeviceOrRequestAdmin();
+        if (key == LauncherKey.CORNER_4) {
+            if (screen == LauncherScreen.HOME) actions.lockDeviceOrRequestAdmin();
             else goHome();
             return;
         }
-        if (screen == 0 && key.matches("[0-9]")) {
-            int digit = Integer.parseInt(key);
+        if (screen == LauncherScreen.HOME && key.isDigit()) {
+            int digit = key.digit();
             if (homeKeyBehavior == HOME_KEYS_DIALER || digit == 0) {
-                ((MainActivity) getContext()).openSystemDialer(key);
+                actions.openDialer(String.valueOf(digit));
             } else if (digit <= homeCount) {
                 selected = digit - 1;
                 launchSlot();
             }
             return;
         }
-        if (screen == 1) {
-            if (key.equals("*")) deleteQueryCharacter();
-            else if (key.equals("#")) {
-                query.clear();
-                onQueryChanged();
+        if (screen == LauncherScreen.DRAWER) {
+            if (key == LauncherKey.STAR) drawerTextInput.deleteCharacter();
+            else if (key == LauncherKey.POUND) {
+                drawerTextInput.clear();
             }
             return;
         }
@@ -985,17 +865,14 @@ public final class LauncherView extends View {
     }
 
     private void launch(ActivityInfo app) {
-        Intent intent = new Intent();
-        intent.setClassName(app.packageName, app.name);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        getContext().startActivity(intent);
+        actions.launch(app);
     }
 
     private void launchSwipeAction(int action) {
         if (action == ACTION_CONTACTS) {
-            ((MainActivity) getContext()).openSystemContacts();
+            actions.openContacts();
         } else if (action == ACTION_MESSAGING) {
-            ((MainActivity) getContext()).openSystemMessaging();
+            actions.openMessaging();
         } else if (action >= 0 && action < apps.size()) {
             launch(apps.get(action));
         }
@@ -1013,13 +890,13 @@ public final class LauncherView extends View {
             settingsSelection = SETTING_SWIPE_RIGHT_TO_LEFT;
         }
         savePrefs();
-        screen = 3;
+        screen = LauncherScreen.SETTINGS;
         invalidate();
     }
 
     private int touchedIndex(float yPx) {
         float y = yPx / d;
-        if (screen == 0) {
+        if (screen == LauncherScreen.HOME) {
             HomeLayout layout = homeLayout();
             float relative = y - layout.firstRowTopDp;
             int row = (int) Math.floor(relative / layout.rowStepDp);
@@ -1027,14 +904,14 @@ public final class LauncherView extends View {
             int index = homeOffset + row;
             return index >= 0 && index < homeCount ? index : -1;
         }
-        if (screen == 1) {
+        if (screen == LauncherScreen.DRAWER) {
             float relative = y - drawerListTopDp();
             int row = (int) Math.floor(relative / drawerRowStepDp());
             if (row < 0 || relative - row * drawerRowStepDp() > drawerRowHeightDp()) return -1;
             int index = drawerOffset + row;
             return index < drawerApps().size() ? index : -1;
         }
-        if (screen == 3) {
+        if (screen == LauncherScreen.SETTINGS) {
             int total = SETTINGS_ROW_COUNT + homeCount;
             int end = settingsVisibleEnd(settingsOffset, total);
             for (int index = settingsOffset; index < end; index++) {
@@ -1043,7 +920,7 @@ public final class LauncherView extends View {
             }
             return -1;
         }
-        if (screen == 4) {
+        if (screen == LauncherScreen.APP_PICKER) {
             int rowStep = Math.max(38, fontSizeSp + 22);
             float firstTop = 104 - fontSizeSp - 9;
             int row = (int) Math.floor((y - firstTop) / rowStep);
@@ -1054,43 +931,45 @@ public final class LauncherView extends View {
         return -1;
     }
 
-    private void selectTouchedIndex(int touchedScreen, int index) {
+    private void selectTouchedIndex(LauncherScreen touchedScreen, int index) {
         if (index < 0) return;
-        if (touchedScreen == 0 || touchedScreen == 1) selected = index;
-        else if (touchedScreen == 3) settingsSelection = index;
-        else if (touchedScreen == 4) pickerSelection = index;
+        if (touchedScreen == LauncherScreen.HOME || touchedScreen == LauncherScreen.DRAWER) {
+            selected = index;
+        } else if (touchedScreen == LauncherScreen.SETTINGS) {
+            settingsSelection = index;
+        } else if (touchedScreen == LauncherScreen.APP_PICKER) {
+            pickerSelection = index;
+        }
         invalidate();
     }
 
-    private void activateTouchedIndex(int touchedScreen) {
+    private void activateTouchedIndex(LauncherScreen touchedScreen) {
         if (screen != touchedScreen) return;
-        if (screen == 0) launchSlot();
-        else if (screen == 1) launchSelected();
-        else if (screen == 3) changeSetting();
-        else if (screen == 4) {
-            confirmPickerSelection();
-        }
+        if (screen == LauncherScreen.HOME) launchSlot();
+        else if (screen == LauncherScreen.DRAWER) launchSelected();
+        else if (screen == LauncherScreen.SETTINGS) changeSetting();
+        else if (screen == LauncherScreen.APP_PICKER) confirmPickerSelection();
     }
 
-    private void moveTouchSelection(int touchedScreen, int delta) {
+    private void moveTouchSelection(LauncherScreen touchedScreen, int delta) {
         if (delta == 0 || screen != touchedScreen) return;
-        if (screen == 0) {
+        if (screen == LauncherScreen.HOME) {
             selected = Math.max(0, Math.min(homeCount - 1, selected + delta));
             HomeLayout layout = homeLayout();
             homeOffset = keepSelectionVisible(selected, homeCount,
                     homeVisibleRows(layout), homeOffset);
-        } else if (screen == 1) {
+        } else if (screen == LauncherScreen.DRAWER) {
             int total = drawerApps().size();
             if (total == 0) return;
             selected = Math.max(0, Math.min(total - 1, selected + delta));
             drawerOffset = keepSelectionVisible(selected, total,
                     drawerVisibleRows(), drawerOffset);
-        } else if (screen == 3) {
+        } else if (screen == LauncherScreen.SETTINGS) {
             int total = SETTINGS_ROW_COUNT + homeCount;
             settingsSelection = Math.max(0, Math.min(total - 1, settingsSelection + delta));
             settingsOffset = keepSettingsSelectionVisible(
                     settingsSelection, total, settingsOffset);
-        } else if (screen == 4) {
+        } else if (screen == LauncherScreen.APP_PICKER) {
             int total = pickerItemCount();
             pickerSelection = Math.max(0, Math.min(total - 1, pickerSelection + delta));
             int rowStep = Math.max(38, fontSizeSp + 22);
@@ -1098,6 +977,13 @@ public final class LauncherView extends View {
                     visibleRows(104, rowStep, 18), pickerOffset);
         }
         invalidate();
+    }
+
+    @Override
+    public boolean performClick() {
+        super.performClick();
+        if (touchIndex >= 0) activateTouchedIndex(touchScreen);
+        return true;
     }
 
     @Override
@@ -1118,10 +1004,11 @@ public final class LauncherView extends View {
                     activateTouchedIndex(touchScreen);
                 };
                 touchHandler.postDelayed(holdAction, 700);
-            } else if (screen == 0 && event.getY() > dp(homeListBottomDp(homeLayout()))) {
+            } else if (screen == LauncherScreen.HOME
+                    && event.getY() > dp(homeListBottomDp(homeLayout()))) {
                 holdAction = () -> {
                     holdTriggered = true;
-                    screen = 3;
+                    screen = LauncherScreen.SETTINGS;
                     settingsHintScrollStartedAt = 0L;
                     settingsSelection = 0;
                     settingsOffset = 0;
@@ -1133,14 +1020,15 @@ public final class LauncherView extends View {
         }
         if (event.getAction() == MotionEvent.ACTION_MOVE) {
             float distance = event.getY() - touchLastY;
-            float threshold = dp(touchScreen == 0 ? 24 : Math.max(24, (fontSizeSp + 22) / 2f));
+            float threshold = dp(touchScreen == LauncherScreen.HOME
+                    ? 24 : Math.max(24, (fontSizeSp + 22) / 2f));
             if (Math.abs(event.getX() - touchDownX) >= dp(18)
                     || Math.abs(event.getY() - touchDownY) >= dp(18)) {
                 if (holdAction != null) touchHandler.removeCallbacks(holdAction);
                 holdAction = null;
                 touchMoved = true;
             }
-            if (touchScreen == 0
+            if (touchScreen == LauncherScreen.HOME
                     && Math.abs(event.getX() - touchDownX)
                     > Math.abs(event.getY() - touchDownY)) {
                 return true;
@@ -1160,7 +1048,7 @@ public final class LauncherView extends View {
             float dx = event.getX() - touchDownX;
             float dy = event.getY() - touchDownY;
             if (!locked && !holdTriggered && screen == touchScreen
-                    && touchScreen == 0 && Math.abs(dx) >= dp(80)
+                    && touchScreen == LauncherScreen.HOME && Math.abs(dx) >= dp(80)
                     && Math.abs(dx) > Math.abs(dy)) {
                 launchSwipeAction(dx > 0
                         ? swipeLeftToRightAction : swipeRightToLeftAction);
@@ -1168,18 +1056,18 @@ public final class LauncherView extends View {
                 return true;
             }
             if (!locked && !holdTriggered && screen == touchScreen
-                    && touchScreen == 0 && touchIndex < 0
+                    && touchScreen == LauncherScreen.HOME && touchIndex < 0
                     && dy < -dp(80)) {
-                screen = 1;
+                screen = LauncherScreen.DRAWER;
                 selected = 0;
                 drawerOffset = 0;
-                query.clear();
-                refreshTextInput();
+                drawerTextInput.clear();
+                drawerTextInput.refresh(true);
                 invalidate();
                 return true;
             }
             if (!holdTriggered && !touchMoved && touchIndex >= 0) {
-                activateTouchedIndex(touchScreen);
+                performClick();
             }
             getParent().requestDisallowInterceptTouchEvent(false);
             return true;
