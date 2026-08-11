@@ -7,12 +7,17 @@ import android.app.admin.DevicePolicyManager;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
+import android.provider.ContactsContract;
 import android.provider.Settings;
+import android.provider.Telephony;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Window;
@@ -223,6 +228,57 @@ public final class MainActivity extends Activity {
                 Toast.makeText(this, "Không tìm thấy ứng dụng Điện thoại", Toast.LENGTH_LONG).show();
             }
         }
+    }
+
+    public void openSystemContacts() {
+        try {
+            Intent contacts = new Intent(Intent.ACTION_MAIN);
+            contacts.addCategory(Intent.CATEGORY_APP_CONTACTS);
+            startActivity(explicitSystemHandler(contacts, "com.android.contacts"));
+        } catch (ActivityNotFoundException missingContacts) {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, ContactsContract.Contacts.CONTENT_URI));
+            } catch (ActivityNotFoundException missingContactsApp) {
+                Toast.makeText(this, "Không tìm thấy ứng dụng Danh bạ", Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    public void openSystemMessaging() {
+        try {
+            Intent messaging = new Intent(Intent.ACTION_MAIN);
+            messaging.addCategory(Intent.CATEGORY_APP_MESSAGING);
+            startActivity(explicitSystemHandler(messaging, Telephony.Sms.getDefaultSmsPackage(this)));
+        } catch (ActivityNotFoundException missingMessaging) {
+            try {
+                startActivity(new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:")));
+            } catch (ActivityNotFoundException missingMessagingApp) {
+                Toast.makeText(this, "Không tìm thấy ứng dụng Nhắn tin", Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    private Intent explicitSystemHandler(Intent baseIntent, String preferredPackage) {
+        List<ResolveInfo> handlers = getPackageManager()
+                .queryIntentActivities(baseIntent, PackageManager.MATCH_ALL);
+        ResolveInfo best = null;
+        int bestScore = Integer.MIN_VALUE;
+        for (ResolveInfo handler : handlers) {
+            if (handler.activityInfo == null || handler.activityInfo.applicationInfo == null) continue;
+            String packageName = handler.activityInfo.packageName;
+            int score = 0;
+            if (preferredPackage != null && preferredPackage.equals(packageName)) score += 100;
+            if ((handler.activityInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) score += 10;
+            if (packageName.startsWith("com.android.")) score += 5;
+            if (score > bestScore) {
+                best = handler;
+                bestScore = score;
+            }
+        }
+        if (best == null) throw new ActivityNotFoundException();
+        Intent explicit = new Intent(baseIntent);
+        explicit.setClassName(best.activityInfo.packageName, best.activityInfo.name);
+        return explicit;
     }
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
