@@ -296,6 +296,8 @@ public final class MainActivity extends Activity {
             case KeyEvent.KEYCODE_DPAD_LEFT: return "left";
             case KeyEvent.KEYCODE_DPAD_RIGHT: return "right";
             case KeyEvent.KEYCODE_DPAD_CENTER: return "ok";
+            case KeyEvent.KEYCODE_ENTER: return "ok";
+            case KeyEvent.KEYCODE_NUMPAD_ENTER: return "ok";
             case KeyEvent.KEYCODE_BACK: return "back";
             // Doov R17 Pro mtk-kpd.kl maps the four physical corner keys to these Android codes.
             case KeyEvent.KEYCODE_MENU: return "corner1";

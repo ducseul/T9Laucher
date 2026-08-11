@@ -26,10 +26,12 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 
+import java.text.Collator;
 import java.text.Normalizer;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -45,6 +47,7 @@ public final class LauncherView extends View {
     private static final int PICKER_HOME_SLOT = 0;
     private static final int PICKER_SWIPE_LEFT_TO_RIGHT = 1;
     private static final int PICKER_SWIPE_RIGHT_TO_LEFT = 2;
+    private static final long DRAWER_LAUNCH_DEBOUNCE_MS = 300L;
 
     private static final class HomeLayout {
         final float clockSizeSp;
@@ -74,6 +77,8 @@ public final class LauncherView extends View {
 
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final float d;
+    private final Collator vietnameseAppCollator = Collator.getInstance(
+            new Locale("vi", "VN"));
     private final List<ActivityInfo> apps = new ArrayList<>();
     private int screen = 0; // 0 home, 1 drawer, 3 settings, 4 app picker
     private int selected = 0;
@@ -86,6 +91,7 @@ public final class LauncherView extends View {
     private int pickerTarget = PICKER_HOME_SLOT;
     private int pickerSelection = 0;
     private int pickerOffset = 0;
+    private long lastDrawerLaunchAt = 0L;
     private int homeCount = 4;
     private int wallpaperIndex = 0;
     private int fontSizeSp = 14;
@@ -209,6 +215,12 @@ public final class LauncherView extends View {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (!isDrawerTextInputActive()) return super.onKeyDown(keyCode, event);
+        if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+                || keyCode == KeyEvent.KEYCODE_ENTER
+                || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+            launchSelected();
+            return true;
+        }
         if (keyCode == KeyEvent.KEYCODE_DEL) {
             deleteQueryCharacter();
             return true;
@@ -715,6 +727,13 @@ public final class LauncherView extends View {
             String label = appLabel(app);
             if (normalizedQuery.length() == 0 || norm(label).contains(normalizedQuery)) filtered.add(app);
         }
+        Collections.sort(filtered, (left, right) -> {
+            int byLabel = vietnameseAppCollator.compare(appLabel(left), appLabel(right));
+            if (byLabel != 0) return byLabel;
+            int byPackage = left.packageName.compareToIgnoreCase(right.packageName);
+            if (byPackage != 0) return byPackage;
+            return left.name.compareToIgnoreCase(right.name);
+        });
         return filtered;
     }
 
@@ -925,7 +944,11 @@ public final class LauncherView extends View {
 
     private void launchSelected() {
         List<ActivityInfo> filtered = drawerApps();
-        if (selected >= 0 && selected < filtered.size()) launch(filtered.get(selected));
+        if (selected < 0 || selected >= filtered.size()) return;
+        long now = SystemClock.uptimeMillis();
+        if (now - lastDrawerLaunchAt < DRAWER_LAUNCH_DEBOUNCE_MS) return;
+        lastDrawerLaunchAt = now;
+        launch(filtered.get(selected));
     }
 
     private void launch(ActivityInfo app) {
