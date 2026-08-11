@@ -28,6 +28,7 @@ import android.view.inputmethod.InputMethodManager;
 import java.text.Normalizer;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -276,12 +277,14 @@ public final class LauncherView extends View {
     }
 
     private void drawHome(Canvas c) {
-        String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
+        Date now = new Date();
+        String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(now);
         p.setTextAlign(Paint.Align.CENTER);
-        float clockSizeSp = Math.max(28, Math.min(38, fontSizeSp * 2));
+        float clockSizeSp = Math.min(36, fontSizeSp + 3);
         mono(c, time, getWidth() / 2f, dp(66), clockSizeSp, Color.rgb(243, 239, 231));
-        text(c, new SimpleDateFormat("EEE, dd/MM", Locale.US).format(new Date()).toUpperCase(Locale.US),
-                getWidth() / 2f, dp(86), 10, Color.rgb(139, 138, 144));
+        float dateSizeSp = Math.max(12, fontSizeSp - 3);
+        text(c, vietnameseDate(now), getWidth() / 2f, dp(86), dateSizeSp,
+                Color.rgb(139, 138, 144));
         p.setTextAlign(Paint.Align.LEFT);
         p.setColor(Color.rgb(43, 43, 47));
         c.drawRect(dp(12), dp(100), getWidth() - dp(12), dp(101), p);
@@ -302,6 +305,14 @@ public final class LauncherView extends View {
             text(c, appLabel(bindings[slot]), dp(48), y, fontSizeSp,
                     slot == selected ? amber : Color.rgb(243, 239, 231));
         }
+    }
+
+    private String vietnameseDate(Date date) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        int dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK);
+        String weekday = dayOfWeek == Calendar.SUNDAY ? "Chủ Nhật" : "Thứ " + dayOfWeek;
+        return weekday + " ngày " + new SimpleDateFormat("dd/MM", Locale.getDefault()).format(date);
     }
 
     private void drawDrawer(Canvas c) {
