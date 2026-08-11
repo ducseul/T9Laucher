@@ -173,6 +173,10 @@ public final class LauncherView extends View {
         return showStatusBar;
     }
 
+    public boolean isHomeScreen() {
+        return screen == LauncherScreen.HOME;
+    }
+
     public void goHome() {
         if (screen == LauncherScreen.SETTINGS || screen == LauncherScreen.APP_PICKER) savePrefs();
         locked = false;
