@@ -377,7 +377,7 @@ public final class LauncherView extends View {
 
     private void drawSettings(Canvas c) {
         mono(c, "CẤU HÌNH LAUNCHER", dp(16), dp(44), fontSizeSp, amber);
-        text(c, "▲▼ chọn · ◀▶ chỉnh font · OK mở/chọn · Back lưu", dp(16), dp(70),
+        text(c, "▲▼ chọn · ◀▶ chỉnh giá trị · OK mở/chọn · Back lưu", dp(16), dp(70),
                 Math.max(10, fontSizeSp - 5), Color.GRAY);
         String[] rows = {"Màu / wallpaper", "Cỡ chữ", "Số app ở Home", "Hiển thị Thanh thông báo"};
         int rowStep = Math.max(38, fontSizeSp + 22);
@@ -509,15 +509,24 @@ public final class LauncherView extends View {
         editor.apply();
     }
 
-    private void adjustFont(int delta) {
-        fontSizeSp = Math.max(12, Math.min(36, fontSizeSp + delta));
+    private boolean adjustSelectedSetting(int delta) {
+        if (settingsSelection == 0) {
+            wallpaperIndex = (wallpaperIndex + delta + 4) % 4;
+        } else if (settingsSelection == 1) {
+            fontSizeSp = Math.max(12, Math.min(36, fontSizeSp + delta));
+        } else if (settingsSelection == 2) {
+            homeCount = Math.max(1, Math.min(9, homeCount + delta));
+        } else {
+            return false;
+        }
         savePrefs();
         invalidate();
+        return true;
     }
 
     private void changeSetting() {
         if (settingsSelection == 0) wallpaperIndex = (wallpaperIndex + 1) % 4;
-        else if (settingsSelection == 1) adjustFont(1);
+        else if (settingsSelection == 1) fontSizeSp = Math.min(36, fontSizeSp + 1);
         else if (settingsSelection == 2) homeCount = homeCount % 9 + 1;
         else if (settingsSelection == 3) {
             showStatusBar = !showStatusBar;
@@ -576,13 +585,8 @@ public final class LauncherView extends View {
             goHome();
             return;
         }
-        if (screen == 3 && settingsSelection == 1 && key.equals("left")) {
-            adjustFont(-1);
-            return;
-        }
-        if (screen == 3 && settingsSelection == 1 && key.equals("right")) {
-            adjustFont(1);
-            return;
+        if (screen == 3 && (key.equals("left") || key.equals("right"))) {
+            if (adjustSelectedSetting(key.equals("left") ? -1 : 1)) return;
         }
         if (screen == 3 && (key.equals("up") || key.equals("left"))) {
             int limit = 4 + homeCount;
