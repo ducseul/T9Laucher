@@ -34,6 +34,32 @@ import java.util.List;
 import java.util.Locale;
 
 public final class LauncherView extends View {
+    private static final class HomeLayout {
+        final float clockSizeSp;
+        final float dateSizeSp;
+        final float clockBaselineDp;
+        final float dateBaselineDp;
+        final float dividerDp;
+        final float firstRowTopDp;
+        final float firstRowBaselineDp;
+        final float rowHeightDp;
+        final float rowStepDp;
+
+        HomeLayout(float clockSizeSp, float dateSizeSp, float clockBaselineDp,
+                   float dateBaselineDp, float dividerDp, float firstRowTopDp,
+                   float firstRowBaselineDp, float rowHeightDp, float rowStepDp) {
+            this.clockSizeSp = clockSizeSp;
+            this.dateSizeSp = dateSizeSp;
+            this.clockBaselineDp = clockBaselineDp;
+            this.dateBaselineDp = dateBaselineDp;
+            this.dividerDp = dividerDp;
+            this.firstRowTopDp = firstRowTopDp;
+            this.firstRowBaselineDp = firstRowBaselineDp;
+            this.rowHeightDp = rowHeightDp;
+            this.rowStepDp = rowStepDp;
+        }
+    }
+
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final float d;
     private final List<ActivityInfo> apps = new ArrayList<>();
@@ -279,32 +305,84 @@ public final class LauncherView extends View {
     private void drawHome(Canvas c) {
         Date now = new Date();
         String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(now);
+        HomeLayout layout = homeLayout();
         p.setTextAlign(Paint.Align.CENTER);
-        float clockSizeSp = Math.min(36, fontSizeSp + 3);
-        mono(c, time, getWidth() / 2f, dp(66), clockSizeSp, Color.rgb(243, 239, 231));
-        float dateSizeSp = Math.max(12, fontSizeSp - 3);
-        text(c, vietnameseDate(now), getWidth() / 2f, dp(86), dateSizeSp,
+        mono(c, time, getWidth() / 2f, dp(layout.clockBaselineDp),
+                layout.clockSizeSp, Color.rgb(243, 239, 231));
+        text(c, vietnameseDate(now), getWidth() / 2f, dp(layout.dateBaselineDp),
+                layout.dateSizeSp,
                 Color.rgb(139, 138, 144));
         p.setTextAlign(Paint.Align.LEFT);
         p.setColor(Color.rgb(43, 43, 47));
-        c.drawRect(dp(12), dp(100), getWidth() - dp(12), dp(101), p);
+        c.drawRect(dp(12), dp(layout.dividerDp), getWidth() - dp(12),
+                dp(layout.dividerDp + 1), p);
 
         selected = Math.max(0, Math.min(homeCount - 1, selected));
-        int visible = visibleRows(130, 48, 20);
+        int visible = homeVisibleRows(layout);
         homeOffset = keepSelectionVisible(selected, homeCount, visible, homeOffset);
         int count = Math.min(visible, homeCount - homeOffset);
         for (int row = 0; row < count; row++) {
             int slot = homeOffset + row;
-            float y = dp(130 + row * 48);
+            float rowTopDp = layout.firstRowTopDp + row * layout.rowStepDp;
+            float y = dp(layout.firstRowBaselineDp + row * layout.rowStepDp);
             if (slot == selected) {
                 p.setColor(amber);
-                c.drawRoundRect(new RectF(0, y - dp(18), dp(3), y + dp(2)),
+                c.drawRoundRect(new RectF(0, dp(rowTopDp), dp(3),
+                                dp(rowTopDp + layout.rowHeightDp)),
                         dp(1.5f), dp(1.5f), p);
             }
             mono(c, String.valueOf(slot + 1), dp(14), y, 12, amber);
             text(c, appLabel(bindings[slot]), dp(48), y, fontSizeSp,
                     slot == selected ? amber : Color.rgb(243, 239, 231));
         }
+    }
+
+    private HomeLayout homeLayout() {
+        float clockSizeSp = Math.min(36, fontSizeSp + 5);
+        float dateSizeSp = Math.max(12, fontSizeSp - 5);
+
+        p.setTypeface(Typeface.create("monospace", Typeface.BOLD));
+        p.setTextSize(dp(clockSizeSp));
+        Paint.FontMetrics clockMetrics = p.getFontMetrics();
+        float clockTopDp = clockMetrics.top / d;
+        float clockBottomDp = clockMetrics.bottom / d;
+        float clockBaselineDp = 28f - clockTopDp;
+
+        p.setTypeface(Typeface.create("sans", Typeface.NORMAL));
+        p.setTextSize(dp(dateSizeSp));
+        Paint.FontMetrics dateMetrics = p.getFontMetrics();
+        float dateTopDp = dateMetrics.top / d;
+        float dateBottomDp = dateMetrics.bottom / d;
+        float dateBaselineDp = clockBaselineDp + clockBottomDp + 6f - dateTopDp;
+        float dividerDp = dateBaselineDp + dateBottomDp + 10f;
+
+        p.setTextSize(dp(fontSizeSp));
+        Paint.FontMetrics appMetrics = p.getFontMetrics();
+        float appTopDp = appMetrics.top / d;
+        float appBottomDp = appMetrics.bottom / d;
+        float appHeightDp = appBottomDp - appTopDp;
+        float rowHeightDp = Math.max(40f, appHeightDp + 12f);
+        float rowStepDp = rowHeightDp + 8f;
+        float firstRowTopDp = dividerDp + 12f;
+        float firstRowBaselineDp = firstRowTopDp
+                + (rowHeightDp - appHeightDp) / 2f - appTopDp;
+
+        return new HomeLayout(clockSizeSp, dateSizeSp, clockBaselineDp,
+                dateBaselineDp, dividerDp, firstRowTopDp, firstRowBaselineDp,
+                rowHeightDp, rowStepDp);
+    }
+
+    private int homeVisibleRows(HomeLayout layout) {
+        float availableDp = getHeight() / d - 20f - layout.firstRowTopDp;
+        if (availableDp <= layout.rowHeightDp) return 1;
+        return Math.max(1, (int) Math.floor(
+                (availableDp - layout.rowHeightDp) / layout.rowStepDp) + 1);
+    }
+
+    private float homeListBottomDp(HomeLayout layout) {
+        int count = Math.min(homeVisibleRows(layout), homeCount);
+        if (count == 0) return layout.firstRowTopDp;
+        return layout.firstRowTopDp + (count - 1) * layout.rowStepDp + layout.rowHeightDp;
     }
 
     private String vietnameseDate(Date date) {
@@ -696,9 +774,12 @@ public final class LauncherView extends View {
     private int touchedIndex(float yPx) {
         float y = yPx / d;
         if (screen == 0) {
-            int row = (int) Math.floor((y - 105) / 48f);
+            HomeLayout layout = homeLayout();
+            float relative = y - layout.firstRowTopDp;
+            int row = (int) Math.floor(relative / layout.rowStepDp);
+            if (row < 0 || relative - row * layout.rowStepDp > layout.rowHeightDp) return -1;
             int index = homeOffset + row;
-            return row >= 0 && index >= 0 && index < homeCount ? index : -1;
+            return index >= 0 && index < homeCount ? index : -1;
         }
         if (screen == 1) {
             float relative = y - drawerListTopDp();
@@ -748,8 +829,9 @@ public final class LauncherView extends View {
         if (delta == 0 || screen != touchedScreen) return;
         if (screen == 0) {
             selected = Math.max(0, Math.min(homeCount - 1, selected + delta));
+            HomeLayout layout = homeLayout();
             homeOffset = keepSelectionVisible(selected, homeCount,
-                    visibleRows(130, 48, 20), homeOffset);
+                    homeVisibleRows(layout), homeOffset);
         } else if (screen == 1) {
             int total = drawerApps().size();
             if (total == 0) return;
@@ -789,7 +871,7 @@ public final class LauncherView extends View {
                     activateTouchedIndex(touchScreen);
                 };
                 touchHandler.postDelayed(holdAction, 700);
-            } else if (screen == 0 && event.getY() > dp(130 + homeCount * 48)) {
+            } else if (screen == 0 && event.getY() > dp(homeListBottomDp(homeLayout()))) {
                 holdAction = () -> {
                     holdTriggered = true;
                     screen = 3;
