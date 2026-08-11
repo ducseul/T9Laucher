@@ -39,7 +39,7 @@
 
 - **2.8 inch:** mặc định 4 app Home, cỡ chữ “Vừa” nhưng dùng thông số lớn hơn 3.5 inch; nút và khoảng cách dọc giữ nguyên, danh sách cuộn dọc.
 - **3.5 inch:** mặc định 4 app để màn hình thoáng; cho phép người dùng tăng đến 9 nếu tên app vẫn vừa một dòng.
-- Các thao tác phím, thời gian long-press và double-tap giữ nguyên trên cả hai profile để không tạo hai bộ quy tắc.
+- Các thao tác phím và thời gian long-press giữ nguyên trên cả hai profile để không tạo hai bộ quy tắc.
 - Nếu độ phân giải thực tế thấp hơn mốc tham chiếu, ưu tiên theo thứ tự: **đọc được tên app → nhìn thấy trạng thái chọn → hiển thị đủ thao tác**. Không thu nhỏ chữ để giữ đủ nội dung.
 
 Prototype HTML có bộ chuyển **2.8″ · QVGA / 3.5″ · HVGA** ở cột “Cấu hình demo”. Bộ chuyển này mô phỏng giới hạn chiều cao và mật độ của từng profile; nó không thay thế việc kiểm thử trên panel thật.
@@ -48,7 +48,7 @@ Prototype HTML có bộ chuyển **2.8″ · QVGA / 3.5″ · HVGA** ở cột �
 
 Mặc định chọn **Android View + ViewBinding + RecyclerView**, một Activity duy nhất và một state holder nhẹ. Jetpack Compose chỉ nên dùng nếu bản build đo thực tế vẫn đạt các ngưỡng cold start/RAM ở trên; không xem Compose là yêu cầu bắt buộc của sản phẩm.
 
-- Tách `LauncherActivity` (bắt phím và vòng đời) khỏi `LauncherState` (trạng thái Home, Drawer, Dialer, Settings, lock, notification).
+- Tách `LauncherActivity` (bắt phím và vòng đời) khỏi `LauncherState` (trạng thái Home, Drawer, Dialer, Settings và lock).
 - Render Home/Drawer bằng view tái sử dụng; không tạo lại toàn bộ cây view khi chỉ đổi highlight.
 - Nạp package/app icon sau khi Home đã vẽ xong. Icon lỗi hoặc chưa nạp dùng placeholder đơn sắc.
 - Lưu cấu hình bằng DataStore Preferences hoặc SharedPreferences nếu cần tối giản dependency; không dùng Room cho vài chục giá trị cấu hình.
@@ -59,7 +59,7 @@ Mặc định chọn **Android View + ViewBinding + RecyclerView**, một Activi
 
 Profile mặc định của bản đầu tiên là **3.5 inch / Doov R17 Pro**. Không hard-code độ phân giải: các listing/manual công khai của cùng tên máy đang ghi nhận cả 480 × 854 và 640 × 960, trong khi kích thước màn hình khoảng 3.54 inch. App phải lấy `displayMetrics` lúc chạy và giữ cùng layout theo `dp/sp`.
 
-- Ưu tiên kiểm thử trên màn hình thật: Home, Drawer, long-press T9, D-pad góc, double-tap OK, lock và mở app.
+- Ưu tiên kiểm thử trên màn hình thật: Home, Drawer, long-press T9, D-pad góc, lock và mở app.
 - Profile 2.8 inch vẫn giữ trong mockup/spec để làm regression floor, nhưng không tối ưu trải nghiệm chính trước khi R17 Pro ổn định.
 - Nếu R17 Pro trả keycode khác với mapping chuẩn, dùng màn hình debug keycode trước khi thêm mapping OEM riêng.
 
@@ -74,7 +74,7 @@ Tài liệu mô tả toàn bộ hành vi của launcher dựa trên prototype `t
 
 **Thiết bị mục tiêu:** Android 11, màn hình 2.8" hoặc 3.5", bàn phím vật lý T9 (12 phím) + cụm điều hướng 3x3 (4 phím góc + 4 mũi tên + phím giữa OK). Mọi hành vi phải dùng được trên profile 2.8" trước.
 
-**Triết lý:** tối giản — chỉ 6 màn hình (Home, Danh sách app, Gọi điện, Cấu hình, Khoá màn hình, Thông báo), không cuộn ngang, không lưới icon, mọi thao tác đều thực hiện được bằng phím cứng.
+**Triết lý:** tối giản — chỉ 5 màn hình (Home, Danh sách app, Gọi điện, Cấu hình, Khoá màn hình), không cuộn ngang, không lưới icon, mọi thao tác đều thực hiện được bằng phím cứng.
 
 ---
 
@@ -94,7 +94,7 @@ Tài liệu mô tả toàn bộ hành vi của launcher dựa trên prototype `t
 | **4** (góc dưới-phải) | **2 bước:** nếu đang ở màn khác Home → về Home trước. Nếu đã ở Home → khoá màn hình |
 | **▲ / ▼** | Di chuyển lựa chọn (highlight) giữa các item trong danh sách hiện tại |
 | **◀ / ▶** | Ở Home/Drawer: di chuyển lựa chọn như ▲▼. Ở màn Cấu hình: chuyển tab |
-| **OK (giữa)** | Bấm 1 lần = mở/xác nhận mục đang chọn. Bấm 2 lần liên tiếp (< 350ms) = mở bảng Thông báo |
+| **OK (giữa)** | Mở/xác nhận mục đang chọn |
 
 ## 2. Bàn phím T9 (12 phím)
 
@@ -147,13 +147,7 @@ Gồm 3 tab, chuyển bằng **◀ ▶**:
 - Overlay đen phủ toàn màn hình, chặn mọi input, chỉ hiện đồng hồ + gợi ý "Nhấn phím bất kỳ để mở khoá"
 - Bất kỳ phím nào (D-pad hoặc T9) cũng mở khoá
 
-## 8. Thông báo
-
-- Mở bằng double-tap phím **OK**
-- Overlay trượt từ trên xuống, che khoảng nửa trên màn hình
-- Đóng bằng phím **2** (Back)
-
-## 9. Chế độ im lặng
+## 8. Chế độ im lặng
 
 - Bật/tắt bằng cách giữ phím `#`, hoạt động từ mọi màn hình
 - Có icon 🔇 hiển thị ở thanh trạng thái khi đang bật, kèm toast xác nhận
@@ -174,7 +168,6 @@ Gồm 3 tab, chuyển bằng **◀ ▶**:
 - Override `dispatchKeyEvent()` ở Activity gốc để bắt tất cả `KEYCODE_0`..`KEYCODE_9`, `KEYCODE_STAR`, `KEYCODE_POUND`, `KEYCODE_DPAD_UP/DOWN/LEFT/RIGHT/CENTER` trước khi hệ thống xử lý.
 - Phân biệt nhấn ngắn / giữ: dùng `Handler.postDelayed` bắt đầu tại `ACTION_DOWN`, huỷ nếu `ACTION_UP` đến sớm hơn ngưỡng (~500ms cho quick-dial, có thể cấu hình). Không dùng `KeyEvent.getRepeatCount()` vì nó báo lặp liên tục chứ không tách rõ 2 hành vi.
 - 4 phím góc thường map vào `KEYCODE_SOFT_LEFT/SOFT_RIGHT` hoặc `KEYCODE_BUTTON_*` tuỳ hãng sản xuất — **cần test trên thiết bị thật**, vì mapping không chuẩn hoá giữa các dòng máy T9-Android.
-- Double-tap OK: so sánh timestamp giữa 2 lần `ACTION_DOWN` liên tiếp của `KEYCODE_DPAD_CENTER`, ngưỡng ~300–350ms giống prototype.
 
 ## Lưu trữ cấu hình
 - **Jetpack DataStore (Preferences)** để lưu: số lượng app hiển thị, căn trái/phải, bindings (map vị trí → app), wallpaper đã chọn, cỡ chữ, trạng thái im lặng. Nhẹ, async, phù hợp vài chục key-value đơn giản — không cần Room vì không có dữ liệu quan hệ.
@@ -194,9 +187,6 @@ Gồm 3 tab, chuyển bằng **◀ ▶**:
 - Bản demo tự vẽ overlay là **khoá mềm** riêng của app (chặn thao tác trong launcher), phù hợp nếu mục tiêu chỉ là tránh bấm nhầm.
 - Nếu cần khoá bảo mật thật (yêu cầu mở khoá bằng PIN/vân tay), nên gọi `KeyguardManager` / để hệ thống Android xử lý qua nút nguồn, tránh chồng chéo với keyguard gốc của OS.
 
-## Thông báo
-- Bản demo chỉ là khung UI tĩnh. Để hiển thị thông báo thật, cần implement `NotificationListenerService` (yêu cầu người dùng cấp quyền "Notification access" thủ công trong Settings — không thể tự xin qua runtime permission).
-
 ## Hình nền & cỡ chữ
 - Vì màn hình nhỏ và ưu tiên hiệu năng, nên dùng gradient/màu phẳng (`Drawable` hoặc `Brush` trong Compose) như prototype thay vì ảnh bitmap — tránh chi phí decode ảnh trên phần cứng yếu.
 - Cỡ chữ: lưu số nguyên 12–24 sp trong Preferences/DataStore, áp dụng ngay lên tên app và preview, không hard-code từng nơi.
@@ -207,5 +197,5 @@ Gồm 3 tab, chuyển bằng **◀ ▶**:
 
 ## Rủi ro kỹ thuật cần lưu ý sớm
 1. Mapping phím cứng (D-pad 4 góc) khác nhau giữa các hãng → nên làm màn "Kiểm tra phím" ẩn để log keycode thực tế khi test thiết bị mới.
-2. Xin quyền Notification access và Do-Not-Disturb access đều phải hướng dẫn người dùng vào Settings thủ công, không xin được qua dialog runtime permission thông thường — cần màn hướng dẫn riêng lúc onboarding.
+2. Xin quyền Do-Not-Disturb access phải hướng dẫn người dùng vào Settings thủ công, không xin được qua dialog runtime permission thông thường — cần màn hướng dẫn riêng lúc onboarding.
 3. Launcher phải khởi động rất nhanh (thường < 1–2s) trên phần cứng thấp — tránh nạp toàn bộ danh sách app + icon lúc cold start, nên lazy-load Drawer khi thực sự mở.

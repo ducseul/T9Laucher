@@ -10,13 +10,15 @@ public final class T9KeyAccessibilityService extends AccessibilityService {
     protected boolean onKeyEvent(KeyEvent event) {
         if (event.getKeyCode() != KeyEvent.KEYCODE_ENDCALL) return false;
         if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.setAction(MainActivity.isLauncherForeground()
-                    ? MainActivity.ACTION_CORNER4 : MainActivity.ACTION_GO_HOME);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                    | Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            startActivity(intent);
+            if (!MainActivity.dispatchCorner4FromAccessibility()) {
+                Intent intent = new Intent(this, MainActivity.class);
+                intent.setAction(Intent.ACTION_MAIN);
+                intent.addCategory(Intent.CATEGORY_HOME);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                        | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(intent);
+            }
         }
         return true;
     }

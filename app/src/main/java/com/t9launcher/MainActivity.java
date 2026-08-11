@@ -23,10 +23,9 @@ import android.widget.Toast;
 import java.util.List;
 
 public final class MainActivity extends Activity {
-    public static final String ACTION_CORNER4 = "com.t9launcher.action.CORNER4";
-    public static final String ACTION_GO_HOME = "com.t9launcher.action.GO_HOME";
     private static final int REQUEST_DEVICE_ADMIN = 4104;
     private static boolean launcherForeground;
+    private static MainActivity foregroundActivity;
     private final Handler handler = new Handler();
     private LauncherView launcher;
     private String heldKey;
@@ -47,6 +46,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        foregroundActivity = this;
         launcherForeground = true;
         if (launcher != null) {
             setStatusBarVisible(launcher.shouldShowStatusBar());
@@ -57,6 +57,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onPause() {
         launcherForeground = false;
+        if (foregroundActivity == this) foregroundActivity = null;
         super.onPause();
     }
 
@@ -66,15 +67,17 @@ public final class MainActivity extends Activity {
         handleAction(intent);
     }
 
-    public static boolean isLauncherForeground() {
-        return launcherForeground;
+    public static boolean dispatchCorner4FromAccessibility() {
+        MainActivity activity = foregroundActivity;
+        if (!launcherForeground || activity == null || activity.launcher == null) return false;
+        activity.launcher.onKey("corner4", false);
+        return true;
     }
 
     private void handleAction(Intent intent) {
         if (intent == null || launcher == null) return;
-        if (ACTION_CORNER4.equals(intent.getAction())) launcher.onKey("corner4", false);
-        else if (ACTION_GO_HOME.equals(intent.getAction())) launcher.goHome();
-        intent.setAction(null);
+        if (Intent.ACTION_MAIN.equals(intent.getAction())
+                && intent.hasCategory(Intent.CATEGORY_HOME)) launcher.goHome();
     }
 
     private boolean isKeyFilterEnabled() {

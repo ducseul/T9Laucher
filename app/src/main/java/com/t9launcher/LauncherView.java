@@ -52,9 +52,7 @@ public final class LauncherView extends View {
     private final int[] bindings = new int[9];
     private final Editable query = new SpannableStringBuilder();
     private boolean locked;
-    private boolean notifications;
     private boolean silent;
-    private long lastOk;
     private float touchDownY;
     private float touchLastY;
     private int touchScreen;
@@ -101,7 +99,6 @@ public final class LauncherView extends View {
     public void goHome() {
         if (screen == 3 || screen == 4) savePrefs();
         locked = false;
-        notifications = false;
         screen = 0;
         query.clear();
         refreshTextInput();
@@ -109,7 +106,7 @@ public final class LauncherView extends View {
     }
 
     public boolean isDrawerTextInputActive() {
-        return screen == 1 && !locked && !notifications;
+        return screen == 1 && !locked;
     }
 
     @Override
@@ -250,10 +247,6 @@ public final class LauncherView extends View {
         c.drawColor(backgroundColor());
         if (locked) {
             drawLock(c);
-            return;
-        }
-        if (notifications) {
-            drawNotifications(c);
             return;
         }
         drawStatus(c);
@@ -450,15 +443,6 @@ public final class LauncherView extends View {
         p.setTextAlign(Paint.Align.LEFT);
     }
 
-    private void drawNotifications(Canvas c) {
-        c.drawColor(Color.rgb(12, 12, 13));
-        mono(c, "THÔNG BÁO", dp(16), dp(36), 11, amber);
-        p.setColor(Color.rgb(43, 43, 47));
-        c.drawRect(0, dp(50), getWidth(), dp(51), p);
-        text(c, "Không có thông báo mới", dp(20), dp(94), 12, Color.LTGRAY);
-        text(c, "Phím Back để đóng", dp(20), getHeight() - dp(18), 10, Color.GRAY);
-    }
-
     private int backgroundColor() {
         return new int[]{Color.rgb(22, 22, 24), Color.rgb(38, 19, 14),
                 Color.rgb(8, 20, 24), Color.rgb(10, 24, 13)}[wallpaperIndex % 4];
@@ -544,7 +528,6 @@ public final class LauncherView extends View {
             pickerSelection = current >= 0 && current < apps.size() ? current + 1 : 0;
             pickerOffset = 0;
             screen = 4;
-            lastOk = 0;
         }
         savePrefs();
         invalidate();
@@ -559,7 +542,6 @@ public final class LauncherView extends View {
     public void onKey(String key, boolean hold) {
         if (key.equals("corner3")) {
             locked = false;
-            notifications = false;
             savePrefs();
             ((MainActivity) getContext()).openSystemDialer();
             return;
@@ -567,13 +549,6 @@ public final class LauncherView extends View {
         if (locked) {
             locked = false;
             invalidate();
-            return;
-        }
-        if (notifications) {
-            if (key.equals("back") || key.equals("corner2")) {
-                notifications = false;
-                invalidate();
-            }
             return;
         }
         if (hold && key.equals("#")) {
@@ -645,14 +620,6 @@ public final class LauncherView extends View {
             return;
         }
         if (key.equals("ok")) {
-            long now = System.currentTimeMillis();
-            if (now - lastOk < 350) {
-                lastOk = 0;
-                notifications = true;
-                invalidate();
-                return;
-            }
-            lastOk = now;
             if (screen == 0) launchSlot();
             else if (screen == 1) launchSelected();
             else if (screen == 3) changeSetting();
@@ -839,7 +806,7 @@ public final class LauncherView extends View {
                 holdAction = null;
             }
             float dy = event.getY() - touchDownY;
-            if (!locked && !notifications && touchScreen == 0 && touchIndex < 0
+            if (!locked && touchScreen == 0 && touchIndex < 0
                     && dy < -dp(80)) {
                 screen = 1;
                 selected = 0;

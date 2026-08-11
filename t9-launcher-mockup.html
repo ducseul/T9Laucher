@@ -193,7 +193,7 @@
   }
   .toast.show{ opacity:1; }
 
-  /* ---------- Overlays: lock / notifications ---------- */
+  /* ---------- Lock overlay ---------- */
   .overlay{ position:absolute; inset:0; z-index:30; display:flex; flex-direction:column; opacity:0; pointer-events:none; transition:opacity .2s; }
   .overlay.show{ opacity:1; pointer-events:auto; }
   #overlayLock{ background:#000; align-items:center; justify-content:center; text-align:center; }
@@ -201,15 +201,6 @@
   #overlayLock .lock-date{ font-family:var(--mono); font-size:10px; color:var(--fg-dim); margin-top:6px; letter-spacing:1px; text-transform:uppercase; }
   #overlayLock .lock-hint{ margin-top:26px; font-size:10px; color:var(--fg-faint); font-family:var(--mono); }
   #overlayLock .lock-ico{ font-size:22px; margin-bottom:14px; opacity:.7; }
-
-  #overlayNotif{ background:rgba(10,10,11,0.97); justify-content:flex-start; transform:translateY(-100%); transition:transform .22s, opacity .22s; }
-  #overlayNotif.show{ transform:translateY(0); }
-  .notif-head{ padding:10px 14px 6px; font-family:var(--mono); font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--accent); border-bottom:1px solid var(--divider); }
-  .notif-item{ padding:9px 14px; border-bottom:1px solid var(--divider); font-size:11.5px; }
-  .notif-item .t{ font-weight:600; color:var(--fg); }
-  .notif-item .d{ color:var(--fg-faint); font-size:10px; margin-top:2px; }
-  .notif-empty{ padding:20px; text-align:center; color:var(--fg-faint); font-size:11px; font-family:var(--mono); }
-  .notif-hint{ margin-top:auto; padding:8px 14px; font-family:var(--mono); font-size:9px; color:var(--fg-faint); text-align:center; }
 
   .hold-hint{ position:absolute; left:50%; bottom:34px; transform:translateX(-50%); font-family:var(--mono); font-size:9.5px; color:var(--fg-faint); opacity:0; transition:opacity .2s; pointer-events:none; z-index:15; }
   .hold-hint.show{ opacity:1; }
@@ -334,12 +325,6 @@
           <div class="lock-hint">Nhấn phím bất kỳ để mở khoá</div>
         </div>
 
-        <div class="overlay" id="overlayNotif">
-          <div class="notif-head">Thông báo</div>
-          <div id="notifBody"></div>
-          <div class="notif-hint">Phím 2 (Back) để đóng</div>
-        </div>
-
         <div class="toast" id="toast"></div>
       </div>
     </div>
@@ -394,7 +379,7 @@
       <li><span class="legend-key">4</span> Nếu đang ở Menu/Gọi/Cấu hình: về Home trước. Nếu đã ở Home: khoá màn hình.</li>
       <li><span class="legend-key">▲▼</span> Di chuyển lựa chọn trong danh sách / cấu hình.</li>
       <li><span class="legend-key">◀▶</span> Đổi tab khi đang ở màn Cấu hình.</li>
-      <li><span class="legend-key">OK</span> Bấm 1 lần = mở mục đang chọn · bấm 2 lần liên tiếp = mở Thông báo.</li>
+      <li><span class="legend-key">OK</span> Mở mục đang chọn.</li>
     </ul>
 
     <h3>Bàn phím T9</h3>
@@ -451,8 +436,7 @@
     selHome: 0, selDrawer: 0,
     settingsTab: 0, settingsSelBinding: 0,
     wallpaperIndex: 0, textSizeIndex: 1,
-    silent: false, locked: false, notifOpen: false,
-    lastCenterTap: 0, pendingCenterTimeout: null
+    silent: false, locked: false
   };
 
   const el = id => document.getElementById(id);
@@ -588,7 +572,7 @@
     renderSettings();
   });
 
-  /* ---------- Lock / Notifications overlays ---------- */
+  /* ---------- Lock overlay ---------- */
   function lockScreen(){
     state.locked = true;
     el('overlayLock').classList.add('show');
@@ -598,17 +582,6 @@
     state.locked = false;
     el('overlayLock').classList.remove('show');
   }
-  function openNotifications(){
-    state.notifOpen = true;
-    const body = el('notifBody');
-    body.innerHTML = '<div class="notif-empty">Không có thông báo mới</div>';
-    el('overlayNotif').classList.add('show');
-  }
-  function closeNotifications(){
-    state.notifOpen = false;
-    el('overlayNotif').classList.remove('show');
-  }
-
   function toggleSilent(){
     state.silent = !state.silent;
     el('silentIco').classList.toggle('on', state.silent);
@@ -671,7 +644,6 @@
   function gatedInput(fn){
     return function(...args){
       if(state.locked){ unlockScreen(); return; }
-      if(state.notifOpen){ closeNotifications(); return; }
       fn(...args);
     };
   }
@@ -742,30 +714,11 @@
       showToast('Đã lưu');
     }
   }
-  function handleCenterTap(){
-    const now = Date.now();
-    const delta = now - state.lastCenterTap;
-    if(delta > 0 && delta < 350){
-      clearTimeout(state.pendingCenterTimeout);
-      state.pendingCenterTimeout = null;
-      state.lastCenterTap = 0;
-      openNotifications();
-      return;
-    }
-    state.lastCenterTap = now;
-    state.pendingCenterTimeout = setTimeout(()=>{
-      performCenterSingleAction();
-      state.pendingCenterTimeout = null;
-    }, 350);
-  }
-
   document.getElementById('navpad').addEventListener('click', e=>{
     const target = e.target.closest('[data-nav]');
     if(!target) return;
     const nav = target.dataset.nav;
     if(state.locked){ unlockScreen(); return; }
-    if(state.notifOpen && nav!=='key2'){ closeNotifications(); return; }
-    if(state.notifOpen && nav==='key2'){ closeNotifications(); return; }
     switch(nav){
       case 'key1': switchView('drawer'); state.selDrawer=0; renderDrawer(); break;
       case 'key2':
@@ -783,7 +736,7 @@
       case 'down': moveSelection(1); break;
       case 'left': state.view==='settings' ? switchSettingsTab(-1) : moveSelection(-1); break;
       case 'right': state.view==='settings' ? switchSettingsTab(1) : moveSelection(1); break;
-      case 'center': handleCenterTap(); break;
+      case 'center': performCenterSingleAction(); break;
     }
   });
 
@@ -801,7 +754,7 @@
     let holdTimer = null, hintTimer = null;
     const clear = ()=>{ clearTimeout(holdTimer); clearTimeout(hintTimer); holdHint.classList.remove('show'); };
     homeView.addEventListener('pointerdown', e=>{
-      if(state.locked || state.notifOpen) return;
+      if(state.locked) return;
       if(e.target.closest('.app-row')) return;
       hintTimer = setTimeout(()=> holdHint.classList.add('show'), 700);
       holdTimer = setTimeout(()=>{
