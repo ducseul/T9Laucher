@@ -365,6 +365,8 @@ public final class LauncherView extends View {
             text(c, appLabel(bindings[slot]), dp(48), y, fontSizeSp,
                     slot == selected ? amber : Color.rgb(243, 239, 231));
         }
+
+        text(c, "Danh sách", dp(12), getHeight() - dp(8), 12, amber);
     }
 
     private HomeLayout homeLayout() {
@@ -438,6 +440,9 @@ public final class LauncherView extends View {
         text(c, query.length() == 0 ? "Tìm app…" : query.toString(), 78f, 94f,
                 Math.max(14, Math.min(20, fontSizeSp - 3)),
                 query.length() == 0 ? Color.rgb(170, 169, 173) : Color.WHITE);
+        p.setTextAlign(Paint.Align.RIGHT);
+        text(c, "Quay lại", getWidth() - dp(12), getHeight() - dp(8), 12, amber);
+        p.setTextAlign(Paint.Align.LEFT);
 
         List<ActivityInfo> filtered = drawerApps();
         if (filtered.isEmpty()) {
@@ -489,7 +494,7 @@ public final class LauncherView extends View {
     }
 
     private int drawerVisibleRows() {
-        float bottomPadding = 16f / d;
+        float bottomPadding = 20f;
         float available = getHeight() / d - bottomPadding - drawerListTopDp();
         return Math.max(1, (int) Math.floor((available + 4f / d) / drawerRowStepDp()));
     }
