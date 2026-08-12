@@ -5,4 +5,6 @@ import com.t9launcher.model.LauncherConfiguration;
 public interface LauncherSettingsStore {
     LauncherConfiguration load();
     void save(LauncherConfiguration configuration);
+    String[] loadHomeAppBindings();
+    void saveHomeAppBindings(String[] bindings);
 }

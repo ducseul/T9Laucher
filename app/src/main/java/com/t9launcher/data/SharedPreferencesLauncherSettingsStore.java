@@ -19,6 +19,10 @@ import static com.t9launcher.model.LauncherConfiguration.DRAWER_LAYOUT_LIST;
 import static com.t9launcher.model.LauncherConfiguration.HOME_KEYS_QUICK_ACTION;
 
 public final class SharedPreferencesLauncherSettingsStore implements LauncherSettingsStore {
+    private static final String HOME_BINDINGS_VERSION_KEY = "homeBindingsVersion";
+    private static final int HOME_BINDINGS_VERSION_COMPONENT = 1;
+    private static final String HOME_BINDING_COMPONENT_PREFIX = "homeBindingComponent";
+
     private final SharedPreferences preferences;
 
     public SharedPreferencesLauncherSettingsStore(Context context) {
@@ -74,6 +78,31 @@ public final class SharedPreferencesLauncherSettingsStore implements LauncherSet
                 .putInt("swipeRightToLeftAction", configuration.swipeRightToLeftAction);
         for (int index = 0; index < configuration.bindings.length; index++) {
             editor.putInt("binding" + index, configuration.bindings[index]);
+        }
+        editor.apply();
+    }
+
+    @Override
+    public String[] loadHomeAppBindings() {
+        if (preferences.getInt(HOME_BINDINGS_VERSION_KEY, 0)
+                < HOME_BINDINGS_VERSION_COMPONENT) return null;
+        String[] bindings = new String[BINDING_COUNT];
+        for (int index = 0; index < bindings.length; index++) {
+            bindings[index] = preferences.getString(
+                    HOME_BINDING_COMPONENT_PREFIX + index, "");
+        }
+        return bindings;
+    }
+
+    @Override
+    public void saveHomeAppBindings(String[] bindings) {
+        SharedPreferences.Editor editor = preferences.edit()
+                .putInt(HOME_BINDINGS_VERSION_KEY, HOME_BINDINGS_VERSION_COMPONENT);
+        for (int index = 0; index < BINDING_COUNT; index++) {
+            String binding = bindings != null && index < bindings.length
+                    ? bindings[index] : "";
+            editor.putString(HOME_BINDING_COMPONENT_PREFIX + index,
+                    binding == null ? "" : binding);
         }
         editor.apply();
     }

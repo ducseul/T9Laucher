@@ -18,8 +18,8 @@ import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Handler;
 import android.os.SystemClock;
-import android.text.TextPaint;
 import android.text.TextUtils;
+import android.text.TextPaint;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -42,6 +42,7 @@ import com.t9launcher.data.SharedPreferencesLauncherSettingsStore;
 import com.t9launcher.input.DrawerTextInput;
 import com.t9launcher.input.LauncherKey;
 import com.t9launcher.model.DrawerGridNavigator;
+import com.t9launcher.model.HomeAppBindings;
 import com.t9launcher.model.LauncherConfiguration;
 import com.t9launcher.system.LauncherActions;
 
@@ -200,7 +201,7 @@ public final class LauncherView extends View {
     private int homeKeyBehavior = HOME_KEYS_QUICK_ACTION;
     private int swipeLeftToRightAction = ACTION_CONTACTS;
     private int swipeRightToLeftAction = ACTION_MESSAGING;
-    private final int[] bindings = new int[9];
+    private final String[] bindings = new String[9];
     private final DrawerTextInput drawerTextInput;
     private boolean locked;
     private boolean silent;
@@ -255,9 +256,8 @@ public final class LauncherView extends View {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             setDefaultFocusHighlightEnabled(false);
         }
-        for (int i = 0; i < bindings.length; i++) bindings[i] = i;
-        loadPrefs();
         loadApps();
+        loadPrefs();
         silent = actions.isVibrateMode();
     }
 
@@ -1483,6 +1483,11 @@ public final class LauncherView extends View {
         return "Chưa gán";
     }
 
+    private String appLabel(String binding) {
+        int index = appIndexForBinding(binding);
+        return index >= 0 ? appLabel(apps.get(index)) : "Chưa gán";
+    }
+
     private String appLabel(ActivityInfo app) {
         return appRepository.label(app);
     }
@@ -1495,32 +1500,40 @@ public final class LauncherView extends View {
         return appRepository.filterAndSort(apps, "");
     }
 
-    private int sortedPickerSelectionForApp(int appIndex) {
-        if (appIndex < 0 || appIndex >= apps.size()) return 0;
-        ActivityInfo selectedApp = apps.get(appIndex);
+    private int sortedPickerSelectionForBinding(String binding) {
+        if (binding == null || binding.isEmpty()) return 0;
         List<ActivityInfo> sorted = sortedApps();
         for (int index = 0; index < sorted.size(); index++) {
-            if (sameApp(sorted.get(index), selectedApp)) return index + 1;
+            if (binding.equals(componentId(sorted.get(index)))) return index + 1;
         }
         return 0;
     }
 
-    private int appIndexForSortedPickerSelection() {
-        if (pickerSelection <= 0) return ACTION_NONE;
+    private String bindingForSortedPickerSelection() {
+        if (pickerSelection <= 0) return HomeAppBindings.UNASSIGNED;
         List<ActivityInfo> sorted = sortedApps();
         int sortedIndex = pickerSelection - 1;
-        if (sortedIndex >= sorted.size()) return ACTION_NONE;
-        ActivityInfo selectedApp = sorted.get(sortedIndex);
-        for (int index = 0; index < apps.size(); index++) {
-            if (sameApp(apps.get(index), selectedApp)) return index;
-        }
-        return ACTION_NONE;
+        if (sortedIndex >= sorted.size()) return HomeAppBindings.UNASSIGNED;
+        return componentId(sorted.get(sortedIndex));
     }
 
-    private static boolean sameApp(ActivityInfo left, ActivityInfo right) {
-        return left == right || left != null && right != null
-                && TextUtils.equals(left.packageName, right.packageName)
-                && TextUtils.equals(left.name, right.name);
+    private static String componentId(ActivityInfo app) {
+        return app == null ? HomeAppBindings.UNASSIGNED
+                : HomeAppBindings.componentId(app.packageName, app.name);
+    }
+
+    private List<String> installedComponentIds() {
+        List<String> components = new ArrayList<>(apps.size());
+        for (ActivityInfo app : apps) components.add(componentId(app));
+        return components;
+    }
+
+    private int appIndexForBinding(String binding) {
+        if (binding == null || binding.isEmpty()) return -1;
+        for (int index = 0; index < apps.size(); index++) {
+            if (binding.equals(componentId(apps.get(index)))) return index;
+        }
+        return -1;
     }
 
     private int visibleRows(int firstBaselineDp, int rowStepDp, int bottomPaddingDp) {
@@ -1555,7 +1568,14 @@ public final class LauncherView extends View {
         homeKeyBehavior = configuration.homeKeyBehavior;
         swipeLeftToRightAction = configuration.swipeLeftToRightAction;
         swipeRightToLeftAction = configuration.swipeRightToLeftAction;
-        System.arraycopy(configuration.bindings, 0, bindings, 0, bindings.length);
+        String[] storedBindings = settingsStore.loadHomeAppBindings();
+        if (storedBindings == null) {
+            storedBindings = HomeAppBindings.migrateLegacy(
+                    configuration.bindings, installedComponentIds());
+            settingsStore.saveHomeAppBindings(storedBindings);
+        }
+        System.arraycopy(HomeAppBindings.normalize(storedBindings), 0,
+                bindings, 0, bindings.length);
     }
 
     private void savePrefs() {
@@ -1566,7 +1586,16 @@ public final class LauncherView extends View {
                 drawerLayout, drawerGridColumns, drawerGridRows,
                 drawerGridIconSizeDp, drawerGridIconCornerRadiusDp,
                 homeKeyBehavior, swipeLeftToRightAction, swipeRightToLeftAction,
-                bindings));
+                configurationLegacyBindings()));
+        settingsStore.saveHomeAppBindings(bindings);
+    }
+
+    private int[] configurationLegacyBindings() {
+        int[] legacy = new int[bindings.length];
+        for (int slot = 0; slot < bindings.length; slot++) {
+            legacy[slot] = appIndexForBinding(bindings[slot]);
+        }
+        return legacy;
     }
 
     private boolean adjustSelectedSetting(int delta) {
@@ -1680,8 +1709,7 @@ public final class LauncherView extends View {
         else {
             pickerTarget = PICKER_HOME_SLOT;
             bindingSlot = settingsSelection - SETTINGS_ROW_COUNT;
-            int current = bindings[bindingSlot];
-            pickerSelection = sortedPickerSelectionForApp(current);
+            pickerSelection = sortedPickerSelectionForBinding(bindings[bindingSlot]);
             pickerOffset = 0;
             screen = LauncherScreen.APP_PICKER;
         }
@@ -1847,7 +1875,7 @@ public final class LauncherView extends View {
     }
 
     private void launchSlot() {
-        int index = selected < bindings.length ? bindings[selected] : -1;
+        int index = selected < bindings.length ? appIndexForBinding(bindings[selected]) : -1;
         if (index >= 0 && index < apps.size()) launch(apps.get(index));
     }
 
@@ -1876,7 +1904,7 @@ public final class LauncherView extends View {
 
     private void confirmPickerSelection() {
         if (pickerTarget == PICKER_HOME_SLOT) {
-            bindings[bindingSlot] = appIndexForSortedPickerSelection();
+            bindings[bindingSlot] = bindingForSortedPickerSelection();
             settingsSelection = bindingSlot + SETTINGS_ROW_COUNT;
         } else if (pickerTarget == PICKER_SWIPE_LEFT_TO_RIGHT) {
             swipeLeftToRightAction = actionForPickerSelection();
