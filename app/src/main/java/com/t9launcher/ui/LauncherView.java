@@ -75,14 +75,12 @@ public final class LauncherView extends View {
     private static final int SETTING_SWIPE_RIGHT_TO_LEFT = 13;
     private static final int SETTINGS_TAB_DISPLAY = 0;
     private static final int SETTINGS_TAB_DRAWER = 1;
-    private static final int SETTINGS_TAB_HOME_KEYS = 2;
-    private static final int SETTINGS_TAB_GESTURES = 3;
-    private static final int SETTINGS_TAB_HOME_APPS = 4;
-    private static final int SETTINGS_TAB_AUTHOR = 5;
-    private static final int SETTINGS_TAB_COUNT = 6;
+    private static final int SETTINGS_TAB_HOME_CONTROLS = 2;
+    private static final int SETTINGS_TAB_HOME_APPS = 3;
+    private static final int SETTINGS_TAB_AUTHOR = 4;
+    private static final int SETTINGS_TAB_COUNT = 5;
     private static final String[] SETTINGS_TAB_TITLES = {
-            "HIỂN THỊ", "DRAWER", "BÀN PHÍM T9 HOME", "CỬ CHỈ HOME",
-            "ỨNG DỤNG HOME", "TÁC GIẢ"
+            "HIỂN THỊ", "DRAWER", "ĐIỀU KHIỂN HOME", "ỨNG DỤNG HOME", "TÁC GIẢ"
     };
     private static final float SETTINGS_TAB_TOP_DP = 82f;
     private static final float SETTINGS_TAB_BOTTOM_DP = 114f;
@@ -142,7 +140,7 @@ public final class LauncherView extends View {
     private float settingsTabScrollPx = 0f;
     private final int[] settingsTabSelections = {
             0, SETTING_DRAWER_LAYOUT, SETTING_HOME_KEY_BEHAVIOR,
-            SETTING_SWIPE_LEFT_TO_RIGHT, SETTINGS_ROW_COUNT, -1
+            SETTINGS_ROW_COUNT, -1
     };
     private int homeOffset = 0;
     private int drawerOffset = 0;
@@ -534,8 +532,8 @@ public final class LauncherView extends View {
         float appTopDp = appMetrics.top / d;
         float appBottomDp = appMetrics.bottom / d;
         float appHeightDp = appBottomDp - appTopDp;
-        float rowHeightDp = Math.max(40f, appHeightDp + 12f);
-        float rowStepDp = rowHeightDp + 8f;
+        float rowHeightDp = Math.max(28f, appHeightDp + 12f);
+        float rowStepDp = rowHeightDp + Math.max(4f, fontSizeSp / 5f);
         float firstRowTopDp = dividerDp + 12f;
         float firstRowBaselineDp = firstRowTopDp
                 + (rowHeightDp - appHeightDp) / 2f - appTopDp;
@@ -1021,16 +1019,14 @@ public final class LauncherView extends View {
     private int settingsTabForItem(int index) {
         if (index < SETTING_DRAWER_LAYOUT) return SETTINGS_TAB_DISPLAY;
         if (index < SETTING_HOME_KEY_BEHAVIOR) return SETTINGS_TAB_DRAWER;
-        if (index < SETTING_SWIPE_LEFT_TO_RIGHT) return SETTINGS_TAB_HOME_KEYS;
-        if (index < SETTINGS_ROW_COUNT) return SETTINGS_TAB_GESTURES;
+        if (index < SETTINGS_ROW_COUNT) return SETTINGS_TAB_HOME_CONTROLS;
         return SETTINGS_TAB_HOME_APPS;
     }
 
     private int settingsTabStart(int tab) {
         if (tab == SETTINGS_TAB_DISPLAY) return 0;
         if (tab == SETTINGS_TAB_DRAWER) return SETTING_DRAWER_LAYOUT;
-        if (tab == SETTINGS_TAB_HOME_KEYS) return SETTING_HOME_KEY_BEHAVIOR;
-        if (tab == SETTINGS_TAB_GESTURES) return SETTING_SWIPE_LEFT_TO_RIGHT;
+        if (tab == SETTINGS_TAB_HOME_CONTROLS) return SETTING_HOME_KEY_BEHAVIOR;
         return SETTINGS_ROW_COUNT;
     }
 
