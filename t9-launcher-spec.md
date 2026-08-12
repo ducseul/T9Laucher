@@ -66,7 +66,8 @@ Profile mặc định của bản đầu tiên là **3.5 inch / Doov R17 Pro**. 
 ## 0.3. Cấu hình bằng cảm ứng trên Home
 
 - Nhấn giữ khoảng **700 ms** vào vùng trống bên dưới danh sách app trên Home sẽ mở “Cấu hình launcher”. Nhấn vào một dòng app không được mở app trong thời gian giữ.
-- Dùng ▲▼ để chọn dòng, OK để đổi giá trị, Back để lưu và quay về Home.
+- Dùng ▲▼ để chọn dòng, OK để đổi giá trị, phím góc 1 để lưu và đóng,
+  phím góc 2 để thoát về Home. Hai nhãn thao tác hiển thị ở hai góc dưới màn hình.
 - Có thể đổi: màu/wallpaper tĩnh, cỡ chữ dạng số 12–24 sp, số lượng app Home từ 1–9 và app được gán cho từng phím 1–9 (bao gồm “Chưa gán”).
 - Cấu hình lưu cục bộ bằng Preferences; không cần mạng và không yêu cầu quyền hệ thống.
 
@@ -95,6 +96,7 @@ Tài liệu mô tả toàn bộ hành vi của launcher dựa trên prototype `t
 | **▲ / ▼** | Di chuyển lựa chọn (highlight) giữa các item trong danh sách hiện tại |
 | **◀ / ▶** | Ở Home/Drawer: di chuyển lựa chọn như ▲▼. Ở màn Cấu hình: chuyển tab |
 | **OK (giữa)** | Mở/xác nhận mục đang chọn |
+| **4 / 6 ở Cấu hình** | Giảm / tăng nhanh giá trị đang chọn |
 
 ## 2. Bàn phím T9 (12 phím)
 
@@ -134,13 +136,16 @@ Tài liệu mô tả toàn bộ hành vi của launcher dựa trên prototype `t
 
 **Cách vào:** giữ 5 giây vào một vị trí **trống** trên Home (không phải app) → mở màn Cấu hình.
 
-Gồm 3 tab, chuyển bằng **◀ ▶**:
+Gồm 6 tab, chuyển bằng **◀ ▶**:
 
 | Tab | Điều khiển | Hành vi |
 |---|---|---|
-| **Gán phím** | ▲▼ chọn vị trí 1–9 · OK để đổi | Mỗi lần OK sẽ chuyển vòng qua app kế tiếp trong danh sách (kể cả để "Trống") |
-| **Hình nền** | ▲▼ chọn preset | Áp dụng ngay khi cuộn (live preview), gồm các nền màu/gradient tối để chữ luôn đọc được |
-| **Cỡ chữ** | ▲▼ chọn giá trị số 12–24 sp | Áp dụng ngay lên tên app và preview cấu hình |
+| **Hiển thị** | ▲▼ chọn · OK để đổi | Màu/wallpaper, cỡ chữ 12–36 sp, số app Home và thanh thông báo |
+| **Drawer** | ▲▼ chọn · OK để đổi | Kiểu danh sách/lưới, số cột, số hàng, kích thước và bo góc icon |
+| **Phím T9** | ▲▼ chọn · OK để đổi | Chuyển phím số Home giữa Quick action và Quay số |
+| **Cử chỉ** | ▲▼ chọn · OK để mở/chọn | Gán hành động hoặc ứng dụng cho hai hướng vuốt ngang |
+| **App Home** | ▲▼ chọn vị trí 1–9 · OK để mở/chọn | Gán ứng dụng hoặc để trống cho từng vị trí Home |
+| **Tác giả** | Chỉ đọc | Hiển thị `ducseul`, loại build và version `yy.MMdd-HHmm` được Gradle tự sinh khi build APK |
 
 ## 7. Khoá màn hình
 

@@ -28,6 +28,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import com.t9launcher.BuildConfig;
 import com.t9launcher.apps.AppRepository;
 import com.t9launcher.apps.InstalledAppRepository;
 import com.t9launcher.data.LauncherSettingsStore;
@@ -65,8 +66,22 @@ public final class LauncherView extends View {
     private static final int SETTING_HOME_KEY_BEHAVIOR = 9;
     private static final int SETTING_SWIPE_LEFT_TO_RIGHT = 10;
     private static final int SETTING_SWIPE_RIGHT_TO_LEFT = 11;
-    private static final float SETTINGS_FIRST_BASELINE_DP = 104f;
-    private static final float SETTINGS_SECTION_GAP_DP = 34f;
+    private static final int SETTINGS_TAB_DISPLAY = 0;
+    private static final int SETTINGS_TAB_DRAWER = 1;
+    private static final int SETTINGS_TAB_HOME_KEYS = 2;
+    private static final int SETTINGS_TAB_GESTURES = 3;
+    private static final int SETTINGS_TAB_HOME_APPS = 4;
+    private static final int SETTINGS_TAB_AUTHOR = 5;
+    private static final int SETTINGS_TAB_COUNT = 6;
+    private static final String[] SETTINGS_TAB_TITLES = {
+            "HIỂN THỊ", "DRAWER", "BÀN PHÍM T9 HOME", "CỬ CHỈ HOME",
+            "ỨNG DỤNG HOME", "TÁC GIẢ"
+    };
+    private static final float SETTINGS_TAB_TOP_DP = 82f;
+    private static final float SETTINGS_TAB_BOTTOM_DP = 114f;
+    private static final float SETTINGS_TAB_HORIZONTAL_PADDING_DP = 12f;
+    private static final float SETTINGS_TAB_OVERFLOW_ICON_WIDTH_DP = 24f;
+    private static final float SETTINGS_FIRST_BASELINE_DP = 148f;
     private static final float SETTINGS_BOTTOM_PADDING_DP = 44f;
     private static final float DRAWER_BOTTOM_PADDING_DP = 20f;
     private static final float DRAWER_BACK_LABEL_EXTRA_GAP_SP = 5f;
@@ -110,10 +125,17 @@ public final class LauncherView extends View {
     private LauncherScreen screen = LauncherScreen.HOME;
     private int selected = 0;
     private int settingsSelection = 0;
+    private int settingsTab = SETTINGS_TAB_DISPLAY;
+    private float settingsTabScrollPx = 0f;
+    private final int[] settingsTabSelections = {
+            0, SETTING_DRAWER_LAYOUT, SETTING_HOME_KEY_BEHAVIOR,
+            SETTING_SWIPE_LEFT_TO_RIGHT, SETTINGS_ROW_COUNT, -1
+    };
     private int homeOffset = 0;
     private int drawerOffset = 0;
     private int settingsOffset = 0;
     private long settingsHintScrollStartedAt = 0L;
+    private long settingsAuthorScrollStartedAt = 0L;
     private int bindingSlot = 0;
     private int pickerTarget = PICKER_HOME_SLOT;
     private int pickerSelection = 0;
@@ -140,6 +162,8 @@ public final class LauncherView extends View {
     private float touchLastY;
     private LauncherScreen touchScreen;
     private int touchIndex = -1;
+    private int touchSettingsTab = -1;
+    private int touchSettingsTabDirection = 0;
     private boolean touchMoved;
     private boolean holdTriggered;
     private final Handler touchHandler = new Handler();
@@ -555,6 +579,12 @@ public final class LauncherView extends View {
     private void drawSettings(Canvas c) {
         mono(c, "CẤU HÌNH LAUNCHER", dp(16), dp(44), fontSizeSp, amber);
         drawSettingsHint(c);
+        drawSettingsTabs(c);
+        if (settingsTab == SETTINGS_TAB_AUTHOR) {
+            drawSettingsAuthor(c);
+            drawSettingsSoftKeys(c);
+            return;
+        }
         String[] rows = {"Màu / wallpaper", "Cỡ chữ", "Số app ở Home",
                 "Hiển thị Thanh thông báo", "Kiểu Drawer", "Số cột Grid",
                 "Số hàng Grid", "Kích thước icon Grid", "Bo góc icon Grid",
@@ -562,15 +592,17 @@ public final class LauncherView extends View {
         int total = rows.length + homeCount;
         settingsSelection = Math.max(0, Math.min(total - 1, settingsSelection));
         if (!isSettingsItemVisible(settingsSelection)) {
-            settingsSelection = nextSettingsSelection(
-                    settingsSelection, -1, total, false);
+            settingsSelection = firstVisibleSettingsItem(total);
+        }
+        settingsTabSelections[settingsTab] = settingsSelection;
+        if (!isSettingsItemVisible(settingsOffset)) {
+            settingsOffset = firstVisibleSettingsItem(total);
         }
         settingsOffset = keepSettingsSelectionVisible(settingsSelection, total, settingsOffset);
         int end = settingsVisibleEnd(settingsOffset, total);
         for (int i = settingsOffset; i < end; i++) {
             if (!isSettingsItemVisible(i)) continue;
             float y = settingsRowBaselineDp(i, settingsOffset);
-            if (isSettingsSectionStart(i)) drawSettingsLegend(c, settingsSectionTitle(i), y);
             if (i == settingsSelection) {
                 p.setColor(amber);
                 c.drawRoundRect(new RectF(0, dp(y - fontSizeSp - 6), dp(3), dp(y + 6)),
@@ -591,12 +623,69 @@ public final class LauncherView extends View {
         }
         if (settingsSelection == 1) {
             text(c, "Aa  Ví dụ cỡ chữ " + fontSizeSp + "sp", dp(18),
-                    getHeight() - dp(22), fontSizeSp, amber);
+                    getHeight() - dp(44), fontSizeSp, amber);
         }
+        drawSettingsSoftKeys(c);
+    }
+
+    private void drawSettingsAuthor(Canvas c) {
+        float rowStepDp = settingsRowStepDp();
+        float y = SETTINGS_FIRST_BASELINE_DP;
+        text(c, "Tác giả", dp(18), dp(y), fontSizeSp, Color.WHITE);
+        drawScrollingSettingsAuthor(c, y);
+        y += rowStepDp;
+        drawSettingsInfoRow(c, "Phiên bản",
+                BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")", y);
+        y += rowStepDp;
+        drawSettingsInfoRow(c, "Loại build", BuildConfig.BUILD_TYPE, y);
+    }
+
+    private void drawScrollingSettingsAuthor(Canvas c, float baselineDp) {
+        p.setTypeface(Typeface.create("sans", Typeface.NORMAL));
+        p.setTextSize(dp(fontSizeSp));
+        float leftPx = dp(18) + p.measureText("Tác giả") + dp(16);
+        float rightPx = getWidth() - dp(18);
+        float availablePx = Math.max(0f, rightPx - leftPx);
+        float textWidthPx = p.measureText(BuildConfig.BUILD_AUTHOR);
+        float overflowPx = Math.max(0f, textWidthPx - availablePx);
+        float offsetPx = 0f;
+
+        if (overflowPx > 0f) {
+            long now = SystemClock.uptimeMillis();
+            if (settingsAuthorScrollStartedAt == 0L) settingsAuthorScrollStartedAt = now;
+            long startPauseMs = 1000L;
+            long endPauseMs = 900L;
+            long travelMs = Math.max(1L, (long) (overflowPx / dp(22f) * 1000f));
+            long cycleMs = startPauseMs + travelMs + endPauseMs;
+            long elapsedMs = (now - settingsAuthorScrollStartedAt) % cycleMs;
+            if (elapsedMs > startPauseMs) {
+                offsetPx = elapsedMs >= startPauseMs + travelMs
+                        ? overflowPx
+                        : overflowPx * (elapsedMs - startPauseMs) / travelMs;
+            }
+            postInvalidateDelayed(16L);
+        } else {
+            settingsAuthorScrollStartedAt = 0L;
+        }
+
+        int saveCount = c.save();
+        c.clipRect(leftPx, dp(baselineDp - fontSizeSp - 6f),
+                rightPx, dp(baselineDp + 8f));
+        p.setColor(amber);
+        p.setTextAlign(Paint.Align.LEFT);
+        c.drawText(BuildConfig.BUILD_AUTHOR, leftPx - offsetPx, dp(baselineDp), p);
+        c.restoreToCount(saveCount);
+    }
+
+    private void drawSettingsInfoRow(Canvas c, String label, String value, float baselineDp) {
+        text(c, label, dp(18), dp(baselineDp), fontSizeSp, Color.WHITE);
+        p.setTextAlign(Paint.Align.RIGHT);
+        text(c, value, getWidth() - dp(18), dp(baselineDp), fontSizeSp, amber);
+        p.setTextAlign(Paint.Align.LEFT);
     }
 
     private void drawSettingsHint(Canvas c) {
-        String hint = "▲▼ chọn · ◀▶ chỉnh giá trị · OK mở/chọn · Back lưu";
+        String hint = "◀▶ đổi tab · ▲▼ chọn · 4/6 giảm/tăng nhanh";
         float sizeSp = 14f;
         float leftPx = dp(16);
         float rightPx = getWidth() - dp(16);
@@ -631,16 +720,178 @@ public final class LauncherView extends View {
         c.restoreToCount(saveCount);
     }
 
+    private void drawSettingsSoftKeys(Canvas c) {
+        text(c, "Lưu và đóng", dp(12), getHeight() - dp(8), 12, amber);
+        p.setTextAlign(Paint.Align.RIGHT);
+        text(c, "Thoát", getWidth() - dp(12), getHeight() - dp(8), 12, amber);
+        p.setTextAlign(Paint.Align.LEFT);
+    }
+
+    private void drawSettingsTabs(Canvas c) {
+        float bottomPx = dp(SETTINGS_TAB_BOTTOM_DP);
+        float baselinePx = dp(SETTINGS_TAB_TOP_DP + 21f);
+        float totalWidthPx = settingsTabsTotalWidthPx();
+        boolean overflow = totalWidthPx > getWidth();
+        float iconWidthPx = overflow ? dp(SETTINGS_TAB_OVERFLOW_ICON_WIDTH_DP) : 0f;
+        float viewportLeftPx = iconWidthPx;
+        float viewportRightPx = getWidth() - iconWidthPx;
+        ensureSelectedSettingsTabVisible(totalWidthPx, viewportRightPx - viewportLeftPx);
+
+        p.setColor(Color.rgb(55, 51, 47));
+        c.drawRect(0, bottomPx - dp(1), getWidth(), bottomPx, p);
+
+        int saveCount = c.save();
+        c.clipRect(viewportLeftPx, dp(SETTINGS_TAB_TOP_DP),
+                viewportRightPx, bottomPx);
+        p.setTextAlign(Paint.Align.CENTER);
+        float tabLeftPx = viewportLeftPx - settingsTabScrollPx;
+        for (int tab = 0; tab < SETTINGS_TAB_COUNT; tab++) {
+            float tabWidthPx = settingsTabWidthPx(tab);
+            float centerX = tabLeftPx + tabWidthPx / 2f;
+            mono(c, SETTINGS_TAB_TITLES[tab], centerX, baselinePx,
+                    settingsTabTextSizeSp(),
+                    tab == settingsTab ? amber : Color.rgb(156, 139, 116));
+            if (tab == settingsTab) {
+                p.setColor(amber);
+                c.drawRoundRect(new RectF(tabLeftPx + dp(8), bottomPx - dp(3),
+                                tabLeftPx + tabWidthPx - dp(8), bottomPx),
+                        dp(1.5f), dp(1.5f), p);
+            }
+            tabLeftPx += tabWidthPx;
+        }
+        c.restoreToCount(saveCount);
+
+        if (overflow) {
+            if (settingsTab > SETTINGS_TAB_DISPLAY) {
+                drawSettingsOverflowIcon(c, iconWidthPx / 2f, true);
+            }
+            if (settingsTab < SETTINGS_TAB_AUTHOR) {
+                drawSettingsOverflowIcon(c, getWidth() - iconWidthPx / 2f, false);
+            }
+        }
+        p.setTextAlign(Paint.Align.LEFT);
+    }
+
+    private void drawSettingsOverflowIcon(Canvas c, float centerXPx, boolean pointsLeft) {
+        float centerYPx = dp((SETTINGS_TAB_TOP_DP + SETTINGS_TAB_BOTTOM_DP) / 2f);
+        float halfWidthPx = dp(4f);
+        float halfHeightPx = dp(6f);
+        Path arrow = new Path();
+        if (pointsLeft) {
+            arrow.moveTo(centerXPx + halfWidthPx, centerYPx - halfHeightPx);
+            arrow.lineTo(centerXPx - halfWidthPx, centerYPx);
+            arrow.lineTo(centerXPx + halfWidthPx, centerYPx + halfHeightPx);
+        } else {
+            arrow.moveTo(centerXPx - halfWidthPx, centerYPx - halfHeightPx);
+            arrow.lineTo(centerXPx + halfWidthPx, centerYPx);
+            arrow.lineTo(centerXPx - halfWidthPx, centerYPx + halfHeightPx);
+        }
+        arrow.close();
+        p.setColor(amber);
+        c.drawPath(arrow, p);
+    }
+
+    private float settingsTabTextSizeSp() {
+        return getWidth() / d < 300f ? 13f : 15f;
+    }
+
+    private float settingsTabWidthPx(int tab) {
+        p.setTypeface(Typeface.create("monospace", Typeface.BOLD));
+        p.setTextSize(dp(settingsTabTextSizeSp()));
+        return p.measureText(SETTINGS_TAB_TITLES[tab])
+                + dp(SETTINGS_TAB_HORIZONTAL_PADDING_DP * 2f);
+    }
+
+    private float settingsTabsTotalWidthPx() {
+        float widthPx = 0f;
+        for (int tab = 0; tab < SETTINGS_TAB_COUNT; tab++) {
+            widthPx += settingsTabWidthPx(tab);
+        }
+        return widthPx;
+    }
+
+    private float settingsTabStartPx(int targetTab) {
+        float startPx = 0f;
+        for (int tab = 0; tab < targetTab; tab++) startPx += settingsTabWidthPx(tab);
+        return startPx;
+    }
+
+    private void ensureSelectedSettingsTabVisible(float totalWidthPx, float viewportWidthPx) {
+        if (viewportWidthPx <= 0f) return;
+        float maxScrollPx = Math.max(0f, totalWidthPx - viewportWidthPx);
+        float selectedStartPx = settingsTabStartPx(settingsTab);
+        float selectedEndPx = selectedStartPx + settingsTabWidthPx(settingsTab);
+        settingsTabScrollPx = Math.max(0f, Math.min(maxScrollPx, settingsTabScrollPx));
+        if (selectedStartPx < settingsTabScrollPx) {
+            settingsTabScrollPx = selectedStartPx;
+        } else if (selectedEndPx > settingsTabScrollPx + viewportWidthPx) {
+            settingsTabScrollPx = selectedEndPx - viewportWidthPx;
+        }
+        settingsTabScrollPx = Math.max(0f, Math.min(maxScrollPx, settingsTabScrollPx));
+    }
+
     private int settingsRowStepDp() {
         return Math.max(38, fontSizeSp + 22);
     }
 
     private boolean isSettingsItemVisible(int index) {
-        return drawerLayout == DRAWER_LAYOUT_GRID
-                || index != SETTING_DRAWER_GRID_COLUMNS
+        if (settingsTabForItem(index) != settingsTab) return false;
+        return drawerLayout == DRAWER_LAYOUT_GRID || index != SETTING_DRAWER_GRID_COLUMNS
                 && index != SETTING_DRAWER_GRID_ROWS
                 && index != SETTING_DRAWER_GRID_ICON_SIZE
                 && index != SETTING_DRAWER_GRID_ICON_CORNER_RADIUS;
+    }
+
+    private int settingsTabForItem(int index) {
+        if (index < SETTING_DRAWER_LAYOUT) return SETTINGS_TAB_DISPLAY;
+        if (index < SETTING_HOME_KEY_BEHAVIOR) return SETTINGS_TAB_DRAWER;
+        if (index < SETTING_SWIPE_LEFT_TO_RIGHT) return SETTINGS_TAB_HOME_KEYS;
+        if (index < SETTINGS_ROW_COUNT) return SETTINGS_TAB_GESTURES;
+        return SETTINGS_TAB_HOME_APPS;
+    }
+
+    private int settingsTabStart(int tab) {
+        if (tab == SETTINGS_TAB_DISPLAY) return 0;
+        if (tab == SETTINGS_TAB_DRAWER) return SETTING_DRAWER_LAYOUT;
+        if (tab == SETTINGS_TAB_HOME_KEYS) return SETTING_HOME_KEY_BEHAVIOR;
+        if (tab == SETTINGS_TAB_GESTURES) return SETTING_SWIPE_LEFT_TO_RIGHT;
+        return SETTINGS_ROW_COUNT;
+    }
+
+    private int firstVisibleSettingsItem(int total) {
+        for (int index = settingsTabStart(settingsTab); index < total; index++) {
+            if (isSettingsItemVisible(index)) return index;
+        }
+        return Math.max(0, Math.min(total - 1, settingsTabStart(settingsTab)));
+    }
+
+    private void selectSettingsTab(int tab) {
+        if (settingsTab != SETTINGS_TAB_AUTHOR) {
+            settingsTabSelections[settingsTab] = settingsSelection;
+        }
+        settingsTab = (tab + SETTINGS_TAB_COUNT) % SETTINGS_TAB_COUNT;
+        if (settingsTab == SETTINGS_TAB_AUTHOR) settingsAuthorScrollStartedAt = 0L;
+        int total = SETTINGS_ROW_COUNT + homeCount;
+        if (settingsTab != SETTINGS_TAB_AUTHOR) {
+            int candidate = Math.max(0,
+                    Math.min(total - 1, settingsTabSelections[settingsTab]));
+            settingsSelection = isSettingsItemVisible(candidate)
+                    ? candidate : firstVisibleSettingsItem(total);
+            settingsTabSelections[settingsTab] = settingsSelection;
+            settingsOffset = firstVisibleSettingsItem(total);
+            settingsOffset = keepSettingsSelectionVisible(
+                    settingsSelection, total, settingsOffset);
+        }
+        float totalWidthPx = settingsTabsTotalWidthPx();
+        float iconWidthPx = totalWidthPx > getWidth()
+                ? dp(SETTINGS_TAB_OVERFLOW_ICON_WIDTH_DP) : 0f;
+        ensureSelectedSettingsTabVisible(totalWidthPx,
+                Math.max(0f, getWidth() - iconWidthPx * 2f));
+        invalidate();
+    }
+
+    private void moveSettingsTab(int delta) {
+        selectSettingsTab(settingsTab + delta);
     }
 
     private int nextSettingsSelection(int selection, int direction,
@@ -666,26 +917,11 @@ public final class LauncherView extends View {
         return result;
     }
 
-    private boolean isSettingsSectionStart(int index) {
-        return index == 0 || index == SETTING_HOME_KEY_BEHAVIOR
-                || index == SETTING_DRAWER_LAYOUT
-                || index == SETTING_SWIPE_LEFT_TO_RIGHT || index == SETTINGS_ROW_COUNT;
-    }
-
-    private String settingsSectionTitle(int index) {
-        if (index == 0) return "HIỂN THỊ";
-        if (index == SETTING_DRAWER_LAYOUT) return "DRAWER";
-        if (index == SETTING_HOME_KEY_BEHAVIOR) return "BÀN PHÍM T9 HOME";
-        if (index == SETTING_SWIPE_LEFT_TO_RIGHT) return "CỬ CHỈ HOME";
-        return "ỨNG DỤNG HOME";
-    }
-
     private float settingsRowBaselineDp(int index, int offset) {
         float baseline = SETTINGS_FIRST_BASELINE_DP;
         int rowStep = settingsRowStepDp();
         for (int current = offset; current <= index; current++) {
             if (!isSettingsItemVisible(current)) continue;
-            if (isSettingsSectionStart(current)) baseline += SETTINGS_SECTION_GAP_DP;
             if (current == index) return baseline;
             baseline += rowStep;
         }
@@ -725,19 +961,6 @@ public final class LauncherView extends View {
             offset = next;
         }
         return offset;
-    }
-
-    private void drawSettingsLegend(Canvas c, String title, float rowBaselineDp) {
-        float legendBaselineDp = rowBaselineDp - fontSizeSp - 12f;
-        int legendSizeSp = Math.max(9, Math.min(12, fontSizeSp - 8));
-        mono(c, title, dp(18), dp(legendBaselineDp), legendSizeSp,
-                Color.rgb(156, 139, 116));
-        float lineStartPx = dp(18) + p.measureText(title) + dp(10);
-        if (lineStartPx < getWidth() - dp(18)) {
-            p.setColor(Color.rgb(55, 51, 47));
-            c.drawRect(lineStartPx, dp(legendBaselineDp - 4),
-                    getWidth() - dp(18), dp(legendBaselineDp - 3), p);
-        }
     }
 
     private void drawAppPicker(Canvas c) {
@@ -965,7 +1188,7 @@ public final class LauncherView extends View {
 
     private void changeSetting() {
         if (settingsSelection == 0) wallpaperIndex = (wallpaperIndex + 1) % 4;
-        else if (settingsSelection == 1) fontSizeSp = Math.min(36, fontSizeSp + 1);
+        else if (settingsSelection == 1) fontSizeSp = fontSizeSp == 36 ? 12 : fontSizeSp + 1;
         else if (settingsSelection == 2) homeCount = homeCount % 9 + 1;
         else if (settingsSelection == 3) {
             showStatusBar = !showStatusBar;
@@ -1039,6 +1262,10 @@ public final class LauncherView extends View {
             invalidate();
             return;
         }
+        if (screen == LauncherScreen.SETTINGS && key == LauncherKey.CORNER_1) {
+            goHome();
+            return;
+        }
         if (key == LauncherKey.BACK || key == LauncherKey.CORNER_2) {
             if (screen == LauncherScreen.APP_PICKER) {
                 screen = LauncherScreen.SETTINGS;
@@ -1056,21 +1283,28 @@ public final class LauncherView extends View {
         }
         if (screen == LauncherScreen.SETTINGS
                 && (key == LauncherKey.LEFT || key == LauncherKey.RIGHT)) {
-            if (adjustSelectedSetting(key == LauncherKey.LEFT ? -1 : 1)) return;
+            moveSettingsTab(key == LauncherKey.LEFT ? -1 : 1);
+            return;
         }
-        if (screen == LauncherScreen.SETTINGS
-                && (key == LauncherKey.UP || key == LauncherKey.LEFT)) {
+        if (screen == LauncherScreen.SETTINGS && settingsTab != SETTINGS_TAB_AUTHOR
+                && (key == LauncherKey.DIGIT_4 || key == LauncherKey.DIGIT_6)) {
+            if (adjustSelectedSetting(key == LauncherKey.DIGIT_4 ? -1 : 1)) return;
+        }
+        if (screen == LauncherScreen.SETTINGS && key == LauncherKey.UP) {
+            if (settingsTab == SETTINGS_TAB_AUTHOR) return;
             int limit = SETTINGS_ROW_COUNT + homeCount;
             settingsSelection = nextSettingsSelection(
                     settingsSelection, -1, limit, true);
+            settingsTabSelections[settingsTab] = settingsSelection;
             invalidate();
             return;
         }
-        if (screen == LauncherScreen.SETTINGS
-                && (key == LauncherKey.DOWN || key == LauncherKey.RIGHT)) {
+        if (screen == LauncherScreen.SETTINGS && key == LauncherKey.DOWN) {
+            if (settingsTab == SETTINGS_TAB_AUTHOR) return;
             int limit = SETTINGS_ROW_COUNT + homeCount;
             settingsSelection = nextSettingsSelection(
                     settingsSelection, 1, limit, true);
+            settingsTabSelections[settingsTab] = settingsSelection;
             invalidate();
             return;
         }
@@ -1114,7 +1348,8 @@ public final class LauncherView extends View {
         if (key == LauncherKey.OK) {
             if (screen == LauncherScreen.HOME) launchSlot();
             else if (screen == LauncherScreen.DRAWER) launchSelected();
-            else if (screen == LauncherScreen.SETTINGS) changeSetting();
+            else if (screen == LauncherScreen.SETTINGS
+                    && settingsTab != SETTINGS_TAB_AUTHOR) changeSetting();
             else if (screen == LauncherScreen.APP_PICKER) confirmPickerSelection();
             return;
         }
@@ -1209,9 +1444,42 @@ public final class LauncherView extends View {
             swipeRightToLeftAction = actionForPickerSelection();
             settingsSelection = SETTING_SWIPE_RIGHT_TO_LEFT;
         }
+        settingsTab = settingsTabForItem(settingsSelection);
+        settingsTabSelections[settingsTab] = settingsSelection;
         savePrefs();
         screen = LauncherScreen.SETTINGS;
         invalidate();
+    }
+
+    private boolean isInsideSettingsTabStrip(float yPx) {
+        float yDp = yPx / d;
+        return screen == LauncherScreen.SETTINGS
+                && yDp >= SETTINGS_TAB_TOP_DP && yDp <= SETTINGS_TAB_BOTTOM_DP;
+    }
+
+    private int touchedSettingsTabDirection(float xPx, float yPx) {
+        if (!isInsideSettingsTabStrip(yPx)) return 0;
+        float totalWidthPx = settingsTabsTotalWidthPx();
+        if (totalWidthPx <= getWidth()) return 0;
+        float iconWidthPx = dp(SETTINGS_TAB_OVERFLOW_ICON_WIDTH_DP);
+        if (xPx <= iconWidthPx && settingsTab > SETTINGS_TAB_DISPLAY) return -1;
+        if (xPx >= getWidth() - iconWidthPx && settingsTab < SETTINGS_TAB_AUTHOR) return 1;
+        return 0;
+    }
+
+    private int touchedSettingsTab(float xPx, float yPx) {
+        if (!isInsideSettingsTabStrip(yPx)) return -1;
+        float totalWidthPx = settingsTabsTotalWidthPx();
+        boolean overflow = totalWidthPx > getWidth();
+        float iconWidthPx = overflow ? dp(SETTINGS_TAB_OVERFLOW_ICON_WIDTH_DP) : 0f;
+        if (xPx < iconWidthPx || xPx > getWidth() - iconWidthPx) return -1;
+        float contentX = xPx - iconWidthPx + settingsTabScrollPx;
+        float tabRightPx = 0f;
+        for (int tab = 0; tab < SETTINGS_TAB_COUNT; tab++) {
+            tabRightPx += settingsTabWidthPx(tab);
+            if (contentX < tabRightPx) return tab;
+        }
+        return -1;
     }
 
     private int touchedIndex(float xPx, float yPx) {
@@ -1274,6 +1542,7 @@ public final class LauncherView extends View {
             selected = index;
         } else if (touchedScreen == LauncherScreen.SETTINGS) {
             settingsSelection = index;
+            settingsTabSelections[settingsTab] = settingsSelection;
         } else if (touchedScreen == LauncherScreen.APP_PICKER) {
             pickerSelection = index;
         }
@@ -1337,7 +1606,12 @@ public final class LauncherView extends View {
             touchDownY = event.getY();
             touchLastY = event.getY();
             touchScreen = screen;
-            touchIndex = touchedIndex(event.getX(), event.getY());
+            touchSettingsTabDirection = touchedSettingsTabDirection(
+                    event.getX(), event.getY());
+            touchSettingsTab = touchSettingsTabDirection == 0
+                    ? touchedSettingsTab(event.getX(), event.getY()) : -1;
+            touchIndex = touchSettingsTab >= 0 || touchSettingsTabDirection != 0
+                    ? -1 : touchedIndex(event.getX(), event.getY());
             touchMoved = false;
             holdTriggered = false;
             getParent().requestDisallowInterceptTouchEvent(true);
@@ -1354,7 +1628,9 @@ public final class LauncherView extends View {
                     holdTriggered = true;
                     screen = LauncherScreen.SETTINGS;
                     settingsHintScrollStartedAt = 0L;
+                    settingsTab = SETTINGS_TAB_DISPLAY;
                     settingsSelection = 0;
+                    settingsTabSelections[settingsTab] = settingsSelection;
                     settingsOffset = 0;
                     invalidate();
                 };
@@ -1403,6 +1679,13 @@ public final class LauncherView extends View {
                 return true;
             }
             if (!locked && !holdTriggered && screen == touchScreen
+                    && touchScreen == LauncherScreen.SETTINGS && Math.abs(dx) >= dp(80)
+                    && Math.abs(dx) > Math.abs(dy)) {
+                moveSettingsTab(dx < 0 ? 1 : -1);
+                getParent().requestDisallowInterceptTouchEvent(false);
+                return true;
+            }
+            if (!locked && !holdTriggered && screen == touchScreen
                     && touchScreen == LauncherScreen.HOME && touchIndex < 0
                     && dy < -dp(80)) {
                 screen = LauncherScreen.DRAWER;
@@ -1413,8 +1696,16 @@ public final class LauncherView extends View {
                 invalidate();
                 return true;
             }
-            if (!holdTriggered && !touchMoved && touchIndex >= 0) {
-                performClick();
+            if (!holdTriggered && !touchMoved) {
+                if (touchSettingsTabDirection != 0) {
+                    moveSettingsTab(touchSettingsTabDirection);
+                    performClick();
+                } else if (touchSettingsTab >= 0) {
+                    selectSettingsTab(touchSettingsTab);
+                    performClick();
+                } else if (touchIndex >= 0) {
+                    performClick();
+                }
             }
             getParent().requestDisallowInterceptTouchEvent(false);
             return true;
@@ -1422,6 +1713,8 @@ public final class LauncherView extends View {
         if (event.getAction() == MotionEvent.ACTION_CANCEL) {
             if (holdAction != null) touchHandler.removeCallbacks(holdAction);
             holdAction = null;
+            touchSettingsTab = -1;
+            touchSettingsTabDirection = 0;
             getParent().requestDisallowInterceptTouchEvent(false);
         }
         return true;

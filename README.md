@@ -29,13 +29,14 @@ Phiên bản hiện tại được phát triển và kiểm thử chính trên *
 
 | Phím | Hành vi |
 |---|---|
-| Góc `1` | Mở Drawer |
-| Góc `2` hoặc `Back` | Quay lại; từ màn hình con sẽ về Home |
+| Góc `1` | Mở Drawer; trong Cấu hình: **Lưu và đóng** |
+| Góc `2` hoặc `Back` | Quay lại; trong Cấu hình: **Thoát** về Home |
 | Góc `3` / `Call` | Mở ứng dụng Điện thoại |
 | Góc `4` / `Hang Up` | Từ màn hình con về Home; tại Home khóa màn hình |
-| `▲ ▼ ◀ ▶` | Di chuyển mục đang chọn; trong Cấu hình, `◀ ▶` còn dùng để đổi giá trị |
+| `▲ ▼ ◀ ▶` | Di chuyển mục đang chọn; trong Cấu hình, `◀ ▶` chuyển tab và `▲ ▼` chọn tùy chọn |
 | `OK` | Mở hoặc xác nhận mục đang chọn |
 | Số `1`–`9` tại Home | Mở app đã gán hoặc mở dialer, tùy cấu hình |
+| Số `4` / `6` trong Cấu hình | Giảm / tăng nhanh giá trị đang chọn |
 | Số `0` tại Home | Mở dialer với số `0` |
 | `*` trong Drawer | Xóa một ký tự tìm kiếm |
 | `#` trong Drawer | Xóa toàn bộ nội dung tìm kiếm |
@@ -108,44 +109,77 @@ Repo chưa khai báo signing config cho bản phát hành. APK release sinh ra m
 
 ## Cài đặt và cấu hình thiết bị
 
-Kết nối thiết bị đã bật USB debugging, sau đó chạy:
+### Cài trực tiếp từ file APK
+
+Cách này dành cho người dùng nhận sẵn APK đã ký, không cần cài Android SDK hay build source code.
+
+1. Chép file APK vào điện thoại bằng cáp USB, Bluetooth, thẻ nhớ hoặc tải từ nguồn phát hành tin cậy.
+2. Mở file APK bằng ứng dụng **Tệp/File Manager**.
+3. Nếu Android chặn cài đặt, chọn **Cài đặt → Cho phép từ nguồn này** cho đúng ứng dụng đang mở APK, sau đó quay lại và chọn **Cài đặt**.
+4. Sau khi cài xong, nhấn phím **Home**. T9 Launcher là Home Activity nên trên một số máy nút **Mở** có thể không xuất hiện và ứng dụng cũng có thể không nằm trong Drawer.
+5. Khi Android hỏi ứng dụng màn hình chính, chọn **T9 Launcher → Luôn luôn**. Nếu không thấy hộp chọn, vào **Cài đặt → Ứng dụng → Ứng dụng mặc định → Ứng dụng màn hình chính** và chọn **T9 Launcher**.
+
+Khi cập nhật, có thể mở APK mới và cài đè. APK mới phải được ký bằng cùng keystore với bản đang cài; nếu chữ ký khác, Android sẽ yêu cầu gỡ bản cũ trước và cấu hình launcher hiện tại có thể bị mất.
+
+### Thiết lập bắt buộc sau khi cài
+
+1. Vào **Cài đặt → Trợ năng/Khả năng tiếp cận → Dịch vụ đã cài đặt**, bật **T9 Launcher - Phím cứng** và chấp thuận cảnh báo của Android. Dịch vụ này nhận phím Hang Up và phát hiện desktop OEM Doov mở đè; cấu hình hiện tại không đọc nội dung cửa sổ.
+2. Nhấn Home một lần nữa và xác nhận T9 Launcher vẫn là ứng dụng màn hình chính mặc định.
+3. Tại Home của T9, bấm phím góc `4` để khóa màn hình. Ở lần đầu, chấp thuận quyền **Device Admin** cho T9 Launcher.
+4. Nếu giữ `#` không chuyển được Chuông/Rung, cấp quyền truy cập **Không làm phiền** theo màn hình Cài đặt Android được mở ra.
+5. Để nhập tìm kiếm bằng phím số trong Drawer, chọn một IME hỗ trợ bàn phím T9 vật lý, ví dụ QinVN. Launcher nhận văn bản từ IME, không tự triển khai bộ gõ multi-tap.
+6. Khởi động lại điện thoại, mở một ứng dụng bất kỳ rồi nhấn Home/Hang Up để kiểm tra T9 trở lại và vẫn nhận phím cứng.
+
+> **Lưu ý trên Doov R17 Pro:** APK thông thường không có quyền vô hiệu hóa desktop hệ thống `com.dp.op`. Dịch vụ trợ năng của T9 phát hiện desktop OEM xuất hiện rồi đưa T9 trở lại, vì vậy desktop gốc vẫn có thể lóe lên trong thời gian rất ngắn. Nếu chưa chọn T9 làm Home mặc định hoặc chưa bật dịch vụ trợ năng, cơ chế khôi phục này không hoạt động.
+
+### Cài bằng ADB
+
+Cách này dành cho kỹ thuật viên hoặc nhà phát triển. Kết nối thiết bị đã bật USB debugging, sau đó chạy:
 
 ```powershell
 adb devices
 adb install -r .\app\build\outputs\apk\debug\app-debug.apk
+adb shell cmd package set-home-activity com.t9launcher/.MainActivity
 ```
 
-Sau khi cài:
+Lệnh `set-home-activity` chỉ chọn T9 làm Home mặc định; nó không tự cấp Device Admin, quyền Không làm phiền hoặc bật dịch vụ trợ năng. Các quyền này vẫn phải được người dùng xác nhận trên điện thoại.
 
-1. Nhấn Home và chọn **T9 Launcher** làm launcher mặc định. Trên một số firmware có thể cần vào **Cài đặt → Ứng dụng mặc định → Ứng dụng màn hình chính**.
-2. Bật dịch vụ trợ năng **T9 Launcher - Phím cứng** khi ứng dụng yêu cầu. Dịch vụ này giúp nhận phím Hang Up và khôi phục launcher trên firmware Doov; nó không đọc nội dung cửa sổ.
-3. Khi dùng phím góc `4` để khóa lần đầu, chấp thuận quyền **Device Admin** cho T9 Launcher.
-4. Nếu giữ `#` không chuyển được Chuông/Rung, cấp quyền truy cập **Không làm phiền** theo màn hình Cài đặt Android được mở ra.
-5. Để nhập tìm kiếm bằng phím số trong Drawer, chọn một IME hỗ trợ bàn phím T9 vật lý, ví dụ QinVN. Launcher nhận văn bản từ IME, không tự triển khai bộ gõ multi-tap.
+### Khắc phục sau khi cài
 
-Có thể đặt launcher mặc định bằng ADB trên các firmware hỗ trợ lệnh sau:
+- **Nhấn Home vẫn về launcher cũ:** mở phần **Ứng dụng màn hình chính** và chọn lại T9 Launcher.
+- **Doov thỉnh thoảng về desktop gốc:** kiểm tra **T9 Launcher - Phím cứng** còn được bật trong Trợ năng. Nếu đã bật nhưng không phục hồi, tắt/bật lại dịch vụ rồi khởi động lại máy.
+- **Không cài đè được APK mới:** kiểm tra APK có cùng chữ ký với bản đang cài hay không. Chỉ gỡ bản cũ sau khi đã ghi lại cấu hình cần giữ.
+- **Không gỡ được T9 Launcher:** tắt quyền Device Admin của T9 trong phần **Ứng dụng quản trị thiết bị** trước khi gỡ.
+
+### Chuyển về launcher gốc hoặc gỡ T9
+
+Thực hiện đúng thứ tự sau để dịch vụ khôi phục của T9 không kéo màn hình trở lại:
+
+1. Tắt **T9 Launcher - Phím cứng** trong phần Trợ năng.
+2. Vào **Ứng dụng mặc định → Ứng dụng màn hình chính** và chọn launcher gốc. Trên Doov R17 Pro, launcher OEM là `com.dp.op/.desk.DeskMainActivity`.
+3. Nếu muốn gỡ ứng dụng, tắt thêm quyền **Device Admin** của T9 Launcher.
+4. Gỡ T9 Launcher như một ứng dụng Android thông thường.
+
+Kỹ thuật viên có thể chọn lại launcher OEM của Doov bằng ADB sau khi đã tắt dịch vụ trợ năng của T9:
 
 ```powershell
-adb shell cmd package set-home-activity com.t9launcher/.MainActivity
+adb shell cmd package set-home-activity com.dp.op/.desk.DeskMainActivity
 ```
 
 ## Cấu hình launcher
 
 Tại Home, giữ khoảng **700 ms** vào vùng trống bên dưới danh sách ứng dụng để mở **Cấu hình Launcher**.
 
-Các tùy chọn hiện có:
+Màn hình Cấu hình được chia thành 6 tab:
 
-- 4 màu/wallpaper tĩnh.
-- Cỡ chữ từ 12–36 sp.
-- 1–9 ứng dụng trên Home.
-- Hiện hoặc ẩn thanh thông báo Android.
-- Kiểu Drawer: danh sách hoặc lưới icon.
-- Số cột lưới từ 2–6 và số hàng từ 2–8.
-- Chế độ phím số Home: **Quick action** hoặc **Quay số**.
-- Hành động vuốt trái → phải và phải → trái: tắt, Danh bạ, Nhắn tin hoặc một ứng dụng đã cài.
-- Gán từng vị trí Home cho một ứng dụng hoặc để trống.
+- **Hiển thị:** màu/wallpaper, cỡ chữ 12–36 sp, số app Home và thanh thông báo.
+- **Drawer:** kiểu danh sách/lưới, số cột, số hàng, kích thước và bo góc icon.
+- **Phím T9:** chế độ **Quick action** hoặc **Quay số** cho phím số ở Home.
+- **Cử chỉ:** hành động vuốt hai chiều, gồm tắt, Danh bạ, Nhắn tin hoặc một ứng dụng.
+- **App Home:** gán từng vị trí Home cho một ứng dụng hoặc để trống.
+- **Tác giả:** hiển thị tác giả `ducseul`, loại build và phiên bản được Gradle tự sinh theo định dạng `yy.MMdd-HHmm` khi tạo APK.
 
-Dùng `▲ ▼` để chọn, `◀ ▶` để chỉnh giá trị, `OK` để mở/xác nhận và `Back` để lưu rồi quay về Home.
+Dùng `◀ ▶` để chuyển tab, `▲ ▼` để chọn, phím số `4`/`6` để giảm/tăng nhanh và `OK` để đổi hoặc mở các mục cần danh sách chọn. Phím góc `1` **Lưu và đóng**, phím góc `2` **Thoát** về Home; hai nhãn này luôn hiện ở hai góc dưới màn hình Cấu hình. Các thay đổi được áp dụng và lưu ngay khi chỉnh nên Thoát không hoàn tác giá trị đã đổi. Dải tab tự cuộn để hiện trọn tab đang chọn; icon `◀`/`▶` ở hai mép cho biết vẫn còn tab bị khuất và cũng có thể chạm để chuyển. Trên màn hình cảm ứng còn có thể chạm tên tab hoặc vuốt ngang.
 
 ## Kiểm thử
 

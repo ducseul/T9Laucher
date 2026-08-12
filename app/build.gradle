@@ -1,7 +1,15 @@
 plugins { id 'com.android.application' }
 
+def buildVersionName = new Date().format('yy.MMdd-HHmm',
+        TimeZone.getTimeZone('Asia/Bangkok'))
+
 android { namespace 'com.t9launcher'; compileSdk 35; buildToolsVersion '35.0.0'
-    defaultConfig { applicationId 'com.t9launcher'; minSdk 23; targetSdk 35; versionCode 1; versionName '0.1.0' }
+    defaultConfig {
+        applicationId 'com.t9launcher'; minSdk 23; targetSdk 35; versionCode 1
+        versionName buildVersionName
+        buildConfigField 'String', 'BUILD_AUTHOR', '"Nguyễn Minh Đức (ducseul)"'
+    }
+    buildFeatures { buildConfig true }
 }
 
 dependencies {
