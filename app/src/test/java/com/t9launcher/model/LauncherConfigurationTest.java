@@ -21,6 +21,10 @@ public final class LauncherConfigurationTest {
         assertEquals(36, configuration.fontSizeSp);
         assertEquals(LauncherConfiguration.DEFAULT_CLOCK_FONT_SIZE_SP,
                 configuration.clockFontSizeSp);
+        assertEquals(LauncherConfiguration.CLOCK_STYLE_CLASSIC,
+                configuration.clockStyle);
+        assertEquals(LauncherConfiguration.CLOCK_ALIGNMENT_CENTER,
+                configuration.clockAlignment);
         assertEquals(16, configuration.dateFontSizeSp());
         assertEquals(LauncherConfiguration.HOME_KEYS_QUICK_ACTION,
                 configuration.homeKeyBehavior);
@@ -132,5 +136,60 @@ public final class LauncherConfigurationTest {
         assertEquals(24, maximum.dateFontSizeSp());
         assertEquals(LauncherConfiguration.MIN_DATE_FONT_SIZE_SP,
                 LauncherConfiguration.dateFontSizeSp(10));
+    }
+
+    @Test
+    public void constructor_normalizesClockStyle() {
+        LauncherConfiguration vertical = configurationWithClockStyle(
+                LauncherConfiguration.CLOCK_STYLE_VERTICAL);
+        LauncherConfiguration eightSegment = configurationWithClockStyle(
+                LauncherConfiguration.CLOCK_STYLE_EIGHT_SEGMENT);
+        LauncherConfiguration invalid = configurationWithClockStyle(99);
+
+        assertEquals(LauncherConfiguration.CLOCK_STYLE_VERTICAL, vertical.clockStyle);
+        assertEquals(LauncherConfiguration.CLOCK_STYLE_EIGHT_SEGMENT,
+                eightSegment.clockStyle);
+        assertEquals(LauncherConfiguration.CLOCK_STYLE_CLASSIC, invalid.clockStyle);
+    }
+
+    @Test
+    public void constructor_defaultsAndNormalizesClockAlignmentToCenter() {
+        LauncherConfiguration legacy = configurationWithClockStyle(
+                LauncherConfiguration.CLOCK_STYLE_VERTICAL);
+        LauncherConfiguration left = configurationWithClockAlignment(
+                LauncherConfiguration.CLOCK_ALIGNMENT_LEFT);
+        LauncherConfiguration right = configurationWithClockAlignment(
+                LauncherConfiguration.CLOCK_ALIGNMENT_RIGHT);
+        LauncherConfiguration invalid = configurationWithClockAlignment(99);
+
+        assertEquals(LauncherConfiguration.CLOCK_ALIGNMENT_CENTER,
+                legacy.clockAlignment);
+        assertEquals(LauncherConfiguration.CLOCK_ALIGNMENT_LEFT, left.clockAlignment);
+        assertEquals(LauncherConfiguration.CLOCK_ALIGNMENT_RIGHT, right.clockAlignment);
+        assertEquals(LauncherConfiguration.CLOCK_ALIGNMENT_CENTER,
+                invalid.clockAlignment);
+    }
+
+    private static LauncherConfiguration configurationWithClockStyle(int clockStyle) {
+        return new LauncherConfiguration(
+                4, 0, 14, LauncherConfiguration.DEFAULT_CLOCK_FONT_SIZE_SP,
+                clockStyle, true, true,
+                LauncherConfiguration.DRAWER_LAYOUT_LIST, 4, 5, 40, 8,
+                LauncherConfiguration.HOME_KEYS_QUICK_ACTION,
+                LauncherConfiguration.ACTION_CONTACTS,
+                LauncherConfiguration.ACTION_MESSAGING,
+                null);
+    }
+
+    private static LauncherConfiguration configurationWithClockAlignment(int clockAlignment) {
+        return new LauncherConfiguration(
+                4, 0, 14, LauncherConfiguration.DEFAULT_CLOCK_FONT_SIZE_SP,
+                LauncherConfiguration.CLOCK_STYLE_CLASSIC, clockAlignment,
+                true, true, LauncherConfiguration.DRAWER_LAYOUT_LIST,
+                4, 5, 40, 8,
+                LauncherConfiguration.HOME_KEYS_QUICK_ACTION,
+                LauncherConfiguration.ACTION_CONTACTS,
+                LauncherConfiguration.ACTION_MESSAGING,
+                null);
     }
 }

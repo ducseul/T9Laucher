@@ -9,6 +9,8 @@ import static com.t9launcher.model.LauncherConfiguration.ACTION_CONTACTS;
 import static com.t9launcher.model.LauncherConfiguration.ACTION_MESSAGING;
 import static com.t9launcher.model.LauncherConfiguration.BINDING_COUNT;
 import static com.t9launcher.model.LauncherConfiguration.DEFAULT_CLOCK_FONT_SIZE_SP;
+import static com.t9launcher.model.LauncherConfiguration.DEFAULT_CLOCK_ALIGNMENT;
+import static com.t9launcher.model.LauncherConfiguration.DEFAULT_CLOCK_STYLE;
 import static com.t9launcher.model.LauncherConfiguration.DEFAULT_DRAWER_GRID_COLUMNS;
 import static com.t9launcher.model.LauncherConfiguration.DEFAULT_DRAWER_GRID_ICON_CORNER_RADIUS_DP;
 import static com.t9launcher.model.LauncherConfiguration.DEFAULT_DRAWER_GRID_ICON_SIZE_DP;
@@ -34,6 +36,8 @@ public final class SharedPreferencesLauncherSettingsStore implements LauncherSet
                 preferences.getInt("wallpaper", 0),
                 preferences.getInt("fontSizeSp", 14),
                 preferences.getInt("clockFontSizeSp", DEFAULT_CLOCK_FONT_SIZE_SP),
+                preferences.getInt("clockStyle", DEFAULT_CLOCK_STYLE),
+                preferences.getInt("clockAlignment", DEFAULT_CLOCK_ALIGNMENT),
                 preferences.getBoolean("showStatusBar", true),
                 preferences.getBoolean("animationsEnabled", true),
                 preferences.getInt("drawerLayout", DRAWER_LAYOUT_LIST),
@@ -55,6 +59,8 @@ public final class SharedPreferencesLauncherSettingsStore implements LauncherSet
                 .putInt("wallpaper", configuration.wallpaperIndex)
                 .putInt("fontSizeSp", configuration.fontSizeSp)
                 .putInt("clockFontSizeSp", configuration.clockFontSizeSp)
+                .putInt("clockStyle", configuration.clockStyle)
+                .putInt("clockAlignment", configuration.clockAlignment)
                 .putBoolean("showStatusBar", configuration.showStatusBar)
                 .putBoolean("animationsEnabled", configuration.animationsEnabled)
                 .putInt("drawerLayout", configuration.drawerLayout)

@@ -23,6 +23,14 @@ public final class LauncherConfiguration {
     public static final int MAX_DRAWER_GRID_ICON_SIZE_DP = 64;
     public static final int MIN_DRAWER_GRID_ICON_CORNER_RADIUS_DP = 0;
     public static final int MAX_DRAWER_GRID_ICON_CORNER_RADIUS_DP = 24;
+    public static final int CLOCK_STYLE_CLASSIC = 0;
+    public static final int CLOCK_STYLE_VERTICAL = 1;
+    public static final int CLOCK_STYLE_EIGHT_SEGMENT = 2;
+    public static final int DEFAULT_CLOCK_STYLE = CLOCK_STYLE_CLASSIC;
+    public static final int CLOCK_ALIGNMENT_LEFT = 0;
+    public static final int CLOCK_ALIGNMENT_CENTER = 1;
+    public static final int CLOCK_ALIGNMENT_RIGHT = 2;
+    public static final int DEFAULT_CLOCK_ALIGNMENT = CLOCK_ALIGNMENT_CENTER;
     public static final int DEFAULT_CLOCK_FONT_SIZE_SP = 32;
     public static final int MIN_CLOCK_FONT_SIZE_SP = 24;
     public static final int MAX_CLOCK_FONT_SIZE_SP = 48;
@@ -32,6 +40,8 @@ public final class LauncherConfiguration {
     public final int wallpaperIndex;
     public final int fontSizeSp;
     public final int clockFontSizeSp;
+    public final int clockStyle;
+    public final int clockAlignment;
     public final boolean showStatusBar;
     public final boolean animationsEnabled;
     public final int drawerLayout;
@@ -97,11 +107,42 @@ public final class LauncherConfiguration {
                                  int drawerGridIconSizeDp, int drawerGridIconCornerRadiusDp,
                                  int homeKeyBehavior, int swipeLeftToRightAction,
                                  int swipeRightToLeftAction, int[] bindings) {
+        this(homeCount, wallpaperIndex, fontSizeSp, clockFontSizeSp,
+                DEFAULT_CLOCK_STYLE, showStatusBar, animationsEnabled, drawerLayout,
+                drawerGridColumns, drawerGridRows, drawerGridIconSizeDp,
+                drawerGridIconCornerRadiusDp, homeKeyBehavior,
+                swipeLeftToRightAction, swipeRightToLeftAction, bindings);
+    }
+
+    public LauncherConfiguration(int homeCount, int wallpaperIndex, int fontSizeSp,
+                                 int clockFontSizeSp, int clockStyle,
+                                 boolean showStatusBar, boolean animationsEnabled,
+                                 int drawerLayout, int drawerGridColumns, int drawerGridRows,
+                                 int drawerGridIconSizeDp, int drawerGridIconCornerRadiusDp,
+                                 int homeKeyBehavior, int swipeLeftToRightAction,
+                                 int swipeRightToLeftAction, int[] bindings) {
+        this(homeCount, wallpaperIndex, fontSizeSp, clockFontSizeSp, clockStyle,
+                DEFAULT_CLOCK_ALIGNMENT, showStatusBar, animationsEnabled,
+                drawerLayout, drawerGridColumns, drawerGridRows,
+                drawerGridIconSizeDp, drawerGridIconCornerRadiusDp,
+                homeKeyBehavior, swipeLeftToRightAction,
+                swipeRightToLeftAction, bindings);
+    }
+
+    public LauncherConfiguration(int homeCount, int wallpaperIndex, int fontSizeSp,
+                                 int clockFontSizeSp, int clockStyle, int clockAlignment,
+                                 boolean showStatusBar, boolean animationsEnabled,
+                                 int drawerLayout, int drawerGridColumns, int drawerGridRows,
+                                 int drawerGridIconSizeDp, int drawerGridIconCornerRadiusDp,
+                                 int homeKeyBehavior, int swipeLeftToRightAction,
+                                 int swipeRightToLeftAction, int[] bindings) {
         this.homeCount = clamp(homeCount, 1, BINDING_COUNT);
         this.wallpaperIndex = clamp(wallpaperIndex, 0, 3);
         this.fontSizeSp = clamp(fontSizeSp, 12, 36);
         this.clockFontSizeSp = clamp(clockFontSizeSp,
                 MIN_CLOCK_FONT_SIZE_SP, MAX_CLOCK_FONT_SIZE_SP);
+        this.clockStyle = normalizeClockStyle(clockStyle);
+        this.clockAlignment = normalizeClockAlignment(clockAlignment);
         this.showStatusBar = showStatusBar;
         this.animationsEnabled = animationsEnabled;
         this.drawerLayout = drawerLayout == DRAWER_LAYOUT_GRID
@@ -141,5 +182,19 @@ public final class LauncherConfiguration {
 
     private static int clamp(int value, int minimum, int maximum) {
         return Math.max(minimum, Math.min(maximum, value));
+    }
+
+    private static int normalizeClockStyle(int value) {
+        if (value == CLOCK_STYLE_VERTICAL || value == CLOCK_STYLE_EIGHT_SEGMENT) {
+            return value;
+        }
+        return CLOCK_STYLE_CLASSIC;
+    }
+
+    private static int normalizeClockAlignment(int value) {
+        if (value == CLOCK_ALIGNMENT_LEFT || value == CLOCK_ALIGNMENT_RIGHT) {
+            return value;
+        }
+        return CLOCK_ALIGNMENT_CENTER;
     }
 }

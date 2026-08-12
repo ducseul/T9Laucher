@@ -3,10 +3,15 @@ package com.t9launcher.ui;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.ActivityInfo;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
@@ -29,6 +34,7 @@ import java.util.List;
 import java.util.Locale;
 
 import com.t9launcher.BuildConfig;
+import com.t9launcher.R;
 import com.t9launcher.apps.AppRepository;
 import com.t9launcher.apps.InstalledAppRepository;
 import com.t9launcher.data.LauncherSettingsStore;
@@ -42,7 +48,15 @@ import com.t9launcher.system.LauncherActions;
 import static com.t9launcher.model.LauncherConfiguration.ACTION_CONTACTS;
 import static com.t9launcher.model.LauncherConfiguration.ACTION_MESSAGING;
 import static com.t9launcher.model.LauncherConfiguration.ACTION_NONE;
+import static com.t9launcher.model.LauncherConfiguration.CLOCK_ALIGNMENT_CENTER;
+import static com.t9launcher.model.LauncherConfiguration.CLOCK_ALIGNMENT_LEFT;
+import static com.t9launcher.model.LauncherConfiguration.CLOCK_ALIGNMENT_RIGHT;
+import static com.t9launcher.model.LauncherConfiguration.CLOCK_STYLE_CLASSIC;
+import static com.t9launcher.model.LauncherConfiguration.CLOCK_STYLE_EIGHT_SEGMENT;
+import static com.t9launcher.model.LauncherConfiguration.CLOCK_STYLE_VERTICAL;
 import static com.t9launcher.model.LauncherConfiguration.DEFAULT_CLOCK_FONT_SIZE_SP;
+import static com.t9launcher.model.LauncherConfiguration.DEFAULT_CLOCK_ALIGNMENT;
+import static com.t9launcher.model.LauncherConfiguration.DEFAULT_CLOCK_STYLE;
 import static com.t9launcher.model.LauncherConfiguration.DRAWER_LAYOUT_GRID;
 import static com.t9launcher.model.LauncherConfiguration.DRAWER_LAYOUT_LIST;
 import static com.t9launcher.model.LauncherConfiguration.HOME_KEYS_DIALER;
@@ -60,19 +74,21 @@ import static com.t9launcher.model.LauncherConfiguration.MIN_DRAWER_GRID_ROWS;
 
 @SuppressLint("ViewConstructor")
 public final class LauncherView extends View {
-    private static final int SETTINGS_ROW_COUNT = 14;
-    private static final int SETTING_CLOCK_FONT_SIZE = 2;
-    private static final int SETTING_HOME_COUNT = 3;
-    private static final int SETTING_STATUS_BAR = 4;
-    private static final int SETTING_ANIMATIONS = 5;
-    private static final int SETTING_DRAWER_LAYOUT = 6;
-    private static final int SETTING_DRAWER_GRID_COLUMNS = 7;
-    private static final int SETTING_DRAWER_GRID_ROWS = 8;
-    private static final int SETTING_DRAWER_GRID_ICON_SIZE = 9;
-    private static final int SETTING_DRAWER_GRID_ICON_CORNER_RADIUS = 10;
-    private static final int SETTING_HOME_KEY_BEHAVIOR = 11;
-    private static final int SETTING_SWIPE_LEFT_TO_RIGHT = 12;
-    private static final int SETTING_SWIPE_RIGHT_TO_LEFT = 13;
+    private static final int SETTINGS_ROW_COUNT = 16;
+    private static final int SETTING_CLOCK_STYLE = 2;
+    private static final int SETTING_CLOCK_ALIGNMENT = 3;
+    private static final int SETTING_CLOCK_FONT_SIZE = 4;
+    private static final int SETTING_HOME_COUNT = 5;
+    private static final int SETTING_STATUS_BAR = 6;
+    private static final int SETTING_ANIMATIONS = 7;
+    private static final int SETTING_DRAWER_LAYOUT = 8;
+    private static final int SETTING_DRAWER_GRID_COLUMNS = 9;
+    private static final int SETTING_DRAWER_GRID_ROWS = 10;
+    private static final int SETTING_DRAWER_GRID_ICON_SIZE = 11;
+    private static final int SETTING_DRAWER_GRID_ICON_CORNER_RADIUS = 12;
+    private static final int SETTING_HOME_KEY_BEHAVIOR = 13;
+    private static final int SETTING_SWIPE_LEFT_TO_RIGHT = 14;
+    private static final int SETTING_SWIPE_RIGHT_TO_LEFT = 15;
     private static final int SETTINGS_TAB_DISPLAY = 0;
     private static final int SETTINGS_TAB_DRAWER = 1;
     private static final int SETTINGS_TAB_HOME_CONTROLS = 2;
@@ -100,10 +116,22 @@ public final class LauncherView extends View {
     private static final int ANIMATION_DRAWER_ENTER = 1;
     private static final int ANIMATION_DRAWER_EXIT = 2;
     private static final int ANIMATION_SETTINGS_REVEAL = 3;
+    private static final int[] SEGMENT_DIGIT_MASKS = {
+            0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7d, 0x07, 0x7f, 0x6f
+    };
+    private static final int PLAYFUL_DIGIT_SPRITE_HEIGHT_PX = 256;
+    private static final int[] PLAYFUL_DIGIT_X_PX = {
+            0, 163, 262, 431, 591, 752, 904, 1071, 1276, 1461
+    };
+    private static final int[] PLAYFUL_DIGIT_WIDTH_PX = {
+            159, 95, 165, 156, 157, 148, 163, 201, 181, 168
+    };
 
     private static final class HomeLayout {
         final float clockSizeSp;
         final float dateSizeSp;
+        final float clockTopDp;
+        final float clockBottomDp;
         final float clockBaselineDp;
         final float dateBaselineDp;
         final float dividerDp;
@@ -112,11 +140,14 @@ public final class LauncherView extends View {
         final float rowHeightDp;
         final float rowStepDp;
 
-        HomeLayout(float clockSizeSp, float dateSizeSp, float clockBaselineDp,
+        HomeLayout(float clockSizeSp, float dateSizeSp,
+                   float clockTopDp, float clockBottomDp, float clockBaselineDp,
                    float dateBaselineDp, float dividerDp, float firstRowTopDp,
                    float firstRowBaselineDp, float rowHeightDp, float rowStepDp) {
             this.clockSizeSp = clockSizeSp;
             this.dateSizeSp = dateSizeSp;
+            this.clockTopDp = clockTopDp;
+            this.clockBottomDp = clockBottomDp;
             this.clockBaselineDp = clockBaselineDp;
             this.dateBaselineDp = dateBaselineDp;
             this.dividerDp = dividerDp;
@@ -132,6 +163,7 @@ public final class LauncherView extends View {
     private final LauncherActions actions;
     private final LauncherSettingsStore settingsStore;
     private final AppRepository appRepository;
+    private final Bitmap playfulDigitSprite;
     private final List<ActivityInfo> apps = new ArrayList<>();
     private LauncherScreen screen = LauncherScreen.HOME;
     private int selected = 0;
@@ -156,6 +188,8 @@ public final class LauncherView extends View {
     private int wallpaperIndex = 0;
     private int fontSizeSp = 14;
     private int clockFontSizeSp = DEFAULT_CLOCK_FONT_SIZE_SP;
+    private int clockStyle = DEFAULT_CLOCK_STYLE;
+    private int clockAlignment = DEFAULT_CLOCK_ALIGNMENT;
     private boolean showStatusBar = true;
     private boolean animationsEnabled = true;
     private int drawerLayout = DRAWER_LAYOUT_LIST;
@@ -199,6 +233,8 @@ public final class LauncherView extends View {
         this.actions = actions;
         this.settingsStore = settingsStore;
         this.appRepository = appRepository;
+        playfulDigitSprite = BitmapFactory.decodeResource(
+                getResources(), R.drawable.playful_digits);
         drawerTextInput = new DrawerTextInput(this, new DrawerTextInput.Listener() {
             @Override
             public void onQueryChanged() {
@@ -450,6 +486,9 @@ public final class LauncherView extends View {
     }
 
     private void text(Canvas c, String s, float x, float y, float size, int color) {
+        p.setStyle(Paint.Style.FILL);
+        p.setShader(null);
+        p.setTextScaleX(1f);
         p.setTypeface(Typeface.create("sans", Typeface.NORMAL));
         p.setTextSize(dp(size));
         p.setColor(color);
@@ -457,6 +496,9 @@ public final class LauncherView extends View {
     }
 
     private void mono(Canvas c, String s, float x, float y, float size, int color) {
+        p.setStyle(Paint.Style.FILL);
+        p.setShader(null);
+        p.setTextScaleX(1f);
         p.setTypeface(Typeface.create("monospace", Typeface.BOLD));
         p.setTextSize(dp(size));
         p.setColor(color);
@@ -471,10 +513,10 @@ public final class LauncherView extends View {
         Date now = new Date();
         String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(now);
         HomeLayout layout = homeLayout();
-        p.setTextAlign(Paint.Align.CENTER);
-        mono(c, time, getWidth() / 2f, dp(layout.clockBaselineDp),
-                layout.clockSizeSp, Color.rgb(243, 239, 231));
-        text(c, vietnameseDate(now), getWidth() / 2f, dp(layout.dateBaselineDp),
+        p.setTextAlign(clockPaintAlign());
+        drawHomeClock(c, time, layout);
+        p.setTextAlign(clockPaintAlign());
+        text(c, vietnameseDate(now), clockAnchorXPx(), dp(layout.dateBaselineDp),
                 layout.dateSizeSp,
                 Color.rgb(139, 138, 144));
         p.setTextAlign(Paint.Align.LEFT);
@@ -508,23 +550,211 @@ public final class LauncherView extends View {
         p.setTextAlign(Paint.Align.LEFT);
     }
 
+    private void drawHomeClock(Canvas c, String time, HomeLayout layout) {
+        if (clockStyle == CLOCK_STYLE_VERTICAL) {
+            drawVerticalClock(c, time, layout);
+        } else if (clockStyle == CLOCK_STYLE_EIGHT_SEGMENT) {
+            drawEightSegmentClock(c, time, layout);
+        } else {
+            mono(c, time, clockAnchorXPx(), dp(layout.clockBaselineDp),
+                    layout.clockSizeSp, Color.rgb(243, 239, 231));
+        }
+    }
+
+    private Paint.Align clockPaintAlign() {
+        if (clockAlignment == CLOCK_ALIGNMENT_LEFT) return Paint.Align.LEFT;
+        if (clockAlignment == CLOCK_ALIGNMENT_RIGHT) return Paint.Align.RIGHT;
+        return Paint.Align.CENTER;
+    }
+
+    private float clockAnchorXPx() {
+        if (clockAlignment == CLOCK_ALIGNMENT_LEFT) return dp(16f);
+        if (clockAlignment == CLOCK_ALIGNMENT_RIGHT) return getWidth() - dp(16f);
+        return getWidth() / 2f;
+    }
+
+    private float clockGroupLeftPx(float groupWidthPx) {
+        if (clockAlignment == CLOCK_ALIGNMENT_LEFT) return dp(16f);
+        if (clockAlignment == CLOCK_ALIGNMENT_RIGHT) {
+            return getWidth() - dp(16f) - groupWidthPx;
+        }
+        return (getWidth() - groupWidthPx) / 2f;
+    }
+
+    private void drawVerticalClock(Canvas c, String time, HomeLayout layout) {
+        String digits = time.replace(":", "");
+        float topPx = dp(layout.clockTopDp);
+        float bottomPx = dp(layout.clockBottomDp);
+        float heightPx = bottomPx - topPx;
+        float digitGapPx = dp(1.5f);
+        float pairGapPx = dp(5f);
+        float widthScale = heightPx / PLAYFUL_DIGIT_SPRITE_HEIGHT_PX * 0.82f;
+        float[] widthsPx = new float[4];
+        float totalWidthPx = digitGapPx * 2f + pairGapPx;
+        for (int index = 0; index < digits.length(); index++) {
+            int digit = digits.charAt(index) - '0';
+            widthsPx[index] = PLAYFUL_DIGIT_WIDTH_PX[digit] * widthScale;
+            totalWidthPx += widthsPx[index];
+        }
+        float availableWidthPx = getWidth() - dp(32f);
+        if (totalWidthPx > availableWidthPx) {
+            float fitScale = availableWidthPx / totalWidthPx;
+            totalWidthPx = digitGapPx * 2f + pairGapPx;
+            for (int index = 0; index < widthsPx.length; index++) {
+                widthsPx[index] *= fitScale;
+                totalWidthPx += widthsPx[index];
+            }
+        }
+
+        float xPx = clockGroupLeftPx(totalWidthPx);
+        p.setShader(null);
+        p.setFilterBitmap(true);
+        p.setDither(true);
+        for (int index = 0; index < digits.length(); index++) {
+            int digit = digits.charAt(index) - '0';
+            int color = index < 2
+                    ? Color.rgb(246, 246, 244) : Color.rgb(205, 207, 209);
+            p.setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN));
+            Rect source = new Rect(
+                    PLAYFUL_DIGIT_X_PX[digit], 0,
+                    PLAYFUL_DIGIT_X_PX[digit] + PLAYFUL_DIGIT_WIDTH_PX[digit],
+                    PLAYFUL_DIGIT_SPRITE_HEIGHT_PX);
+            RectF destination = new RectF(xPx, topPx,
+                    xPx + widthsPx[index], bottomPx);
+            c.drawBitmap(playfulDigitSprite, source, destination, p);
+            xPx += widthsPx[index];
+            if (index == 0 || index == 2) xPx += digitGapPx;
+            else if (index == 1) xPx += pairGapPx;
+        }
+        p.setColorFilter(null);
+        p.setTextScaleX(1f);
+        p.setTextAlign(clockPaintAlign());
+    }
+
+    private void drawEightSegmentClock(Canvas c, String time, HomeLayout layout) {
+        String digits = time.replace(":", "");
+        float topPx = dp(layout.clockTopDp);
+        float heightPx = dp(layout.clockBottomDp - layout.clockTopDp);
+        float digitWidthPx = heightPx * 0.48f;
+        float thicknessPx = Math.max(dp(3f), heightPx * 0.085f);
+        float digitGapPx = thicknessPx * 0.65f;
+        float pairGapPx = digitGapPx * 1.6f;
+        float colonWidthPx = thicknessPx * 1.2f;
+        float totalWidthPx = digitWidthPx * 4f + digitGapPx * 2f
+                + pairGapPx * 2f + colonWidthPx;
+        float availableWidthPx = getWidth() - dp(32f);
+        if (totalWidthPx > availableWidthPx) {
+            float scale = availableWidthPx / totalWidthPx;
+            heightPx *= scale;
+            digitWidthPx *= scale;
+            thicknessPx *= scale;
+            digitGapPx *= scale;
+            pairGapPx *= scale;
+            colonWidthPx *= scale;
+            totalWidthPx = availableWidthPx;
+            topPx += (dp(layout.clockBottomDp - layout.clockTopDp) - heightPx) / 2f;
+        }
+
+        float xPx = clockGroupLeftPx(totalWidthPx);
+        drawSegmentDigit(c, digits.charAt(0) - '0', xPx, topPx,
+                digitWidthPx, heightPx, thicknessPx);
+        xPx += digitWidthPx + digitGapPx;
+        drawSegmentDigit(c, digits.charAt(1) - '0', xPx, topPx,
+                digitWidthPx, heightPx, thicknessPx);
+        xPx += digitWidthPx + pairGapPx;
+
+        p.setShader(null);
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(Color.rgb(116, 219, 255));
+        float radiusPx = colonWidthPx / 2f;
+        c.drawCircle(xPx + radiusPx, topPx + heightPx * 0.34f, radiusPx, p);
+        c.drawCircle(xPx + radiusPx, topPx + heightPx * 0.66f, radiusPx, p);
+        xPx += colonWidthPx + pairGapPx;
+
+        drawSegmentDigit(c, digits.charAt(2) - '0', xPx, topPx,
+                digitWidthPx, heightPx, thicknessPx);
+        xPx += digitWidthPx + digitGapPx;
+        drawSegmentDigit(c, digits.charAt(3) - '0', xPx, topPx,
+                digitWidthPx, heightPx, thicknessPx);
+        p.setTextAlign(clockPaintAlign());
+    }
+
+    private void drawSegmentDigit(Canvas c, int digit, float xPx, float yPx,
+                                  float widthPx, float heightPx, float thicknessPx) {
+        int mask = digit >= 0 && digit < SEGMENT_DIGIT_MASKS.length
+                ? SEGMENT_DIGIT_MASKS[digit] : 0;
+        drawSegmentLayer(c, 0x7f, xPx, yPx, widthPx, heightPx, thicknessPx,
+                Color.argb(34, 116, 219, 255));
+        drawSegmentLayer(c, mask, xPx, yPx, widthPx, heightPx, thicknessPx,
+                Color.rgb(116, 219, 255));
+    }
+
+    private void drawSegmentLayer(Canvas c, int mask, float xPx, float yPx,
+                                  float widthPx, float heightPx, float thicknessPx,
+                                  int color) {
+        float radiusPx = thicknessPx / 2f;
+        float horizontalLeftPx = xPx + thicknessPx * 0.65f;
+        float horizontalRightPx = xPx + widthPx - thicknessPx * 0.65f;
+        float middleTopPx = yPx + (heightPx - thicknessPx) / 2f;
+        float upperTopPx = yPx + thicknessPx * 0.65f;
+        float upperBottomPx = middleTopPx - thicknessPx * 0.15f;
+        float lowerTopPx = middleTopPx + thicknessPx * 1.15f;
+        float lowerBottomPx = yPx + heightPx - thicknessPx * 0.65f;
+
+        p.setStyle(Paint.Style.FILL);
+        p.setShader(null);
+        p.setColor(color);
+        if ((mask & 0x01) != 0) c.drawRoundRect(new RectF(horizontalLeftPx, yPx,
+                horizontalRightPx, yPx + thicknessPx), radiusPx, radiusPx, p);
+        if ((mask & 0x02) != 0) c.drawRoundRect(new RectF(
+                xPx + widthPx - thicknessPx, upperTopPx, xPx + widthPx, upperBottomPx),
+                radiusPx, radiusPx, p);
+        if ((mask & 0x04) != 0) c.drawRoundRect(new RectF(
+                xPx + widthPx - thicknessPx, lowerTopPx, xPx + widthPx, lowerBottomPx),
+                radiusPx, radiusPx, p);
+        if ((mask & 0x08) != 0) c.drawRoundRect(new RectF(horizontalLeftPx,
+                yPx + heightPx - thicknessPx, horizontalRightPx, yPx + heightPx),
+                radiusPx, radiusPx, p);
+        if ((mask & 0x10) != 0) c.drawRoundRect(new RectF(xPx, lowerTopPx,
+                xPx + thicknessPx, lowerBottomPx), radiusPx, radiusPx, p);
+        if ((mask & 0x20) != 0) c.drawRoundRect(new RectF(xPx, upperTopPx,
+                xPx + thicknessPx, upperBottomPx), radiusPx, radiusPx, p);
+        if ((mask & 0x40) != 0) c.drawRoundRect(new RectF(horizontalLeftPx,
+                middleTopPx, horizontalRightPx, middleTopPx + thicknessPx),
+                radiusPx, radiusPx, p);
+    }
+
     private HomeLayout homeLayout() {
         float clockSizeSp = clockFontSizeSp;
         float dateSizeSp = LauncherConfiguration.dateFontSizeSp(clockFontSizeSp);
-
-        p.setTypeface(Typeface.create("monospace", Typeface.BOLD));
-        p.setTextSize(dp(clockSizeSp));
-        Paint.FontMetrics clockMetrics = p.getFontMetrics();
-        float clockTopDp = clockMetrics.top / d;
-        float clockBottomDp = clockMetrics.bottom / d;
-        float clockBaselineDp = 28f - clockTopDp;
+        float clockTopDp;
+        float clockBottomDp;
+        float clockBaselineDp;
+        if (clockStyle == CLOCK_STYLE_CLASSIC) {
+            p.setTypeface(Typeface.create("monospace", Typeface.BOLD));
+            p.setTextScaleX(1f);
+            p.setTextSize(dp(clockSizeSp));
+            Paint.FontMetrics clockMetrics = p.getFontMetrics();
+            clockTopDp = 28f;
+            clockBaselineDp = clockTopDp - clockMetrics.top / d;
+            clockBottomDp = clockBaselineDp + clockMetrics.bottom / d;
+        } else {
+            clockTopDp = 24f;
+            float heightDp = clockStyle == CLOCK_STYLE_VERTICAL
+                    ? Math.max(62f, clockSizeSp * 2.05f)
+                    : Math.max(42f, clockSizeSp * 1.35f);
+            clockBottomDp = clockTopDp + heightDp;
+            clockBaselineDp = clockBottomDp;
+        }
 
         p.setTypeface(Typeface.create("sans", Typeface.NORMAL));
+        p.setTextScaleX(1f);
         p.setTextSize(dp(dateSizeSp));
         Paint.FontMetrics dateMetrics = p.getFontMetrics();
         float dateTopDp = dateMetrics.top / d;
         float dateBottomDp = dateMetrics.bottom / d;
-        float dateBaselineDp = clockBaselineDp + clockBottomDp + 6f - dateTopDp;
+        float clockToDateGapDp = clockStyle == CLOCK_STYLE_VERTICAL ? 2f : 6f;
+        float dateBaselineDp = clockBottomDp + clockToDateGapDp - dateTopDp;
         float dividerDp = dateBaselineDp + dateBottomDp + 10f;
 
         p.setTextSize(dp(fontSizeSp));
@@ -538,7 +768,8 @@ public final class LauncherView extends View {
         float firstRowBaselineDp = firstRowTopDp
                 + (rowHeightDp - appHeightDp) / 2f - appTopDp;
 
-        return new HomeLayout(clockSizeSp, dateSizeSp, clockBaselineDp,
+        return new HomeLayout(clockSizeSp, dateSizeSp,
+                clockTopDp, clockBottomDp, clockBaselineDp,
                 dateBaselineDp, dividerDp, firstRowTopDp, firstRowBaselineDp,
                 rowHeightDp, rowStepDp);
     }
@@ -758,8 +989,9 @@ public final class LauncherView extends View {
             drawSettingsSoftKeys(c);
             return;
         }
-        String[] rows = {"Màu / wallpaper", "Cỡ chữ", "Cỡ chữ Đồng hồ",
-                "Số app ở Home", "Hiển thị Thanh thông báo", "Có animation", "Kiểu Drawer",
+        String[] rows = {"Màu / wallpaper", "Cỡ chữ", "Kiểu đồng hồ",
+                "Căn Đồng hồ và ngày", "Cỡ chữ Đồng hồ", "Số app ở Home",
+                "Hiển thị Thanh thông báo", "Có animation", "Kiểu Drawer",
                 "Số cột Grid", "Số hàng Grid", "Kích thước icon Grid",
                 "Bo góc icon Grid", "Phím số ở Home", "Vuốt trái → phải",
                 "Vuốt phải → trái"};
@@ -1181,6 +1413,16 @@ public final class LauncherView extends View {
     private String settingValue(int row) {
         if (row == 0) return new String[]{"Than chì", "Hoàng hôn", "Đại dương", "Rừng"}[wallpaperIndex % 4];
         if (row == 1) return fontSizeSp + " sp";
+        if (row == SETTING_CLOCK_STYLE) {
+            if (clockStyle == CLOCK_STYLE_VERTICAL) return "Số dọc";
+            if (clockStyle == CLOCK_STYLE_EIGHT_SEGMENT) return "Digital 8 thanh";
+            return "Cơ bản";
+        }
+        if (row == SETTING_CLOCK_ALIGNMENT) {
+            if (clockAlignment == CLOCK_ALIGNMENT_LEFT) return "Căn trái";
+            if (clockAlignment == CLOCK_ALIGNMENT_RIGHT) return "Căn phải";
+            return "Căn giữa";
+        }
         if (row == SETTING_CLOCK_FONT_SIZE) return clockFontSizeSp + " sp";
         if (row == SETTING_HOME_COUNT) return String.valueOf(homeCount);
         if (row == SETTING_STATUS_BAR) return showStatusBar ? "[x]" : "[ ]";
@@ -1301,6 +1543,8 @@ public final class LauncherView extends View {
         wallpaperIndex = configuration.wallpaperIndex;
         fontSizeSp = configuration.fontSizeSp;
         clockFontSizeSp = configuration.clockFontSizeSp;
+        clockStyle = configuration.clockStyle;
+        clockAlignment = configuration.clockAlignment;
         showStatusBar = configuration.showStatusBar;
         animationsEnabled = configuration.animationsEnabled;
         drawerLayout = configuration.drawerLayout;
@@ -1317,6 +1561,7 @@ public final class LauncherView extends View {
     private void savePrefs() {
         settingsStore.save(new LauncherConfiguration(
                 homeCount, wallpaperIndex, fontSizeSp, clockFontSizeSp,
+                clockStyle, clockAlignment,
                 showStatusBar, animationsEnabled,
                 drawerLayout, drawerGridColumns, drawerGridRows,
                 drawerGridIconSizeDp, drawerGridIconCornerRadiusDp,
@@ -1329,6 +1574,10 @@ public final class LauncherView extends View {
             wallpaperIndex = (wallpaperIndex + delta + 4) % 4;
         } else if (settingsSelection == 1) {
             fontSizeSp = Math.max(12, Math.min(36, fontSizeSp + delta));
+        } else if (settingsSelection == SETTING_CLOCK_STYLE) {
+            clockStyle = (clockStyle + delta + 3) % 3;
+        } else if (settingsSelection == SETTING_CLOCK_ALIGNMENT) {
+            clockAlignment = (clockAlignment + delta + 3) % 3;
         } else if (settingsSelection == SETTING_CLOCK_FONT_SIZE) {
             clockFontSizeSp = Math.max(MIN_CLOCK_FONT_SIZE_SP,
                     Math.min(MAX_CLOCK_FONT_SIZE_SP, clockFontSizeSp + delta));
@@ -1371,6 +1620,12 @@ public final class LauncherView extends View {
     private void changeSetting() {
         if (settingsSelection == 0) wallpaperIndex = (wallpaperIndex + 1) % 4;
         else if (settingsSelection == 1) fontSizeSp = fontSizeSp == 36 ? 12 : fontSizeSp + 1;
+        else if (settingsSelection == SETTING_CLOCK_STYLE) {
+            clockStyle = (clockStyle + 1) % 3;
+        }
+        else if (settingsSelection == SETTING_CLOCK_ALIGNMENT) {
+            clockAlignment = (clockAlignment + 1) % 3;
+        }
         else if (settingsSelection == SETTING_CLOCK_FONT_SIZE) {
             clockFontSizeSp = clockFontSizeSp == MAX_CLOCK_FONT_SIZE_SP
                     ? MIN_CLOCK_FONT_SIZE_SP : clockFontSizeSp + 1;
