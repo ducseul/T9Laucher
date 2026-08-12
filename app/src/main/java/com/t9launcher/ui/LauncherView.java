@@ -179,6 +179,7 @@ public final class LauncherView extends View {
     private int touchIndex = -1;
     private int touchSettingsTab = -1;
     private int touchSettingsTabDirection = 0;
+    private boolean touchClock;
     private boolean touchMoved;
     private boolean holdTriggered;
     private int activeAnimation = ANIMATION_NONE;
@@ -1716,6 +1717,12 @@ public final class LauncherView extends View {
         return -1;
     }
 
+    private boolean isInsideHomeClock(float yPx) {
+        if (screen != LauncherScreen.HOME) return false;
+        float yDp = yPx / d;
+        return yDp >= 20f && yDp <= homeLayout().dividerDp;
+    }
+
     private void selectTouchedIndex(LauncherScreen touchedScreen, int index) {
         if (index < 0) return;
         if (touchedScreen == LauncherScreen.HOME || touchedScreen == LauncherScreen.DRAWER) {
@@ -1775,7 +1782,8 @@ public final class LauncherView extends View {
     @Override
     public boolean performClick() {
         super.performClick();
-        if (touchIndex >= 0) activateTouchedIndex(touchScreen);
+        if (touchClock && touchScreen == LauncherScreen.HOME) actions.openAlarms();
+        else if (touchIndex >= 0) activateTouchedIndex(touchScreen);
         return true;
     }
 
@@ -1790,6 +1798,8 @@ public final class LauncherView extends View {
                     event.getX(), event.getY());
             touchSettingsTab = touchSettingsTabDirection == 0
                     ? touchedSettingsTab(event.getX(), event.getY()) : -1;
+            touchClock = touchSettingsTab < 0 && touchSettingsTabDirection == 0
+                    && isInsideHomeClock(event.getY());
             touchIndex = touchSettingsTab >= 0 || touchSettingsTabDirection != 0
                     ? -1 : touchedIndex(event.getX(), event.getY());
             touchMoved = false;
@@ -1872,6 +1882,8 @@ public final class LauncherView extends View {
                 } else if (touchSettingsTab >= 0) {
                     selectSettingsTab(touchSettingsTab);
                     performClick();
+                } else if (touchClock) {
+                    performClick();
                 } else if (touchIndex >= 0) {
                     performClick();
                 }
@@ -1884,6 +1896,7 @@ public final class LauncherView extends View {
             holdAction = null;
             touchSettingsTab = -1;
             touchSettingsTabDirection = 0;
+            touchClock = false;
             getParent().requestDisallowInterceptTouchEvent(false);
         }
         return true;

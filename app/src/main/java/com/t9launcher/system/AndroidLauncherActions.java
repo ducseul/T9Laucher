@@ -11,6 +11,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.provider.AlarmClock;
 import android.provider.ContactsContract;
 import android.provider.Settings;
 import android.provider.Telephony;
@@ -107,6 +108,22 @@ public final class AndroidLauncherActions implements LauncherActions {
                     Toast.makeText(activity, "Không tìm thấy ứng dụng Điện thoại",
                             Toast.LENGTH_LONG).show();
                 }
+            }
+        }
+    }
+
+    @Override
+    public void openAlarms() {
+        try {
+            activity.startActivity(new Intent(AlarmClock.ACTION_SHOW_ALARMS));
+        } catch (ActivityNotFoundException missingAlarmHandler) {
+            try {
+                Intent clock = new Intent(Intent.ACTION_MAIN);
+                clock.addCategory("android.intent.category.APP_CLOCK");
+                activity.startActivity(explicitSystemHandler(clock, "com.android.deskclock"));
+            } catch (ActivityNotFoundException missingClockApp) {
+                Toast.makeText(activity, "Không tìm thấy ứng dụng Đồng hồ",
+                        Toast.LENGTH_LONG).show();
             }
         }
     }

@@ -9,6 +9,7 @@ public interface LauncherActions {
     boolean toggleRingerMode();
     void openDialer();
     void openDialer(String initialNumber);
+    void openAlarms();
     void openContacts();
     void openMessaging();
     void launch(ActivityInfo app);

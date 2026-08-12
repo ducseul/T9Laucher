@@ -127,7 +127,7 @@ public final class LauncherConfiguration {
     }
 
     public static int dateFontSizeSp(int clockFontSizeSp) {
-        return Math.max(MIN_DATE_FONT_SIZE_SP, Math.round(clockFontSizeSp * 0.65f));
+        return Math.max(MIN_DATE_FONT_SIZE_SP, Math.round(clockFontSizeSp * 0.5f));
     }
 
     private static int[] normalizedBindings(int[] source) {

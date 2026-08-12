@@ -21,7 +21,7 @@ public final class LauncherConfigurationTest {
         assertEquals(36, configuration.fontSizeSp);
         assertEquals(LauncherConfiguration.DEFAULT_CLOCK_FONT_SIZE_SP,
                 configuration.clockFontSizeSp);
-        assertEquals(21, configuration.dateFontSizeSp());
+        assertEquals(16, configuration.dateFontSizeSp());
         assertEquals(LauncherConfiguration.HOME_KEYS_QUICK_ACTION,
                 configuration.homeKeyBehavior);
         assertEquals(LauncherConfiguration.DRAWER_LAYOUT_LIST, configuration.drawerLayout);
@@ -125,10 +125,11 @@ public final class LauncherConfigurationTest {
 
         assertEquals(LauncherConfiguration.MIN_CLOCK_FONT_SIZE_SP,
                 minimum.clockFontSizeSp);
-        assertEquals(16, minimum.dateFontSizeSp());
+        assertEquals(LauncherConfiguration.MIN_DATE_FONT_SIZE_SP,
+                minimum.dateFontSizeSp());
         assertEquals(LauncherConfiguration.MAX_CLOCK_FONT_SIZE_SP,
                 maximum.clockFontSizeSp);
-        assertEquals(31, maximum.dateFontSizeSp());
+        assertEquals(24, maximum.dateFontSizeSp());
         assertEquals(LauncherConfiguration.MIN_DATE_FONT_SIZE_SP,
                 LauncherConfiguration.dateFontSizeSp(10));
     }
