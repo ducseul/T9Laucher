@@ -13,10 +13,11 @@ Phiên bản hiện tại được phát triển và kiểm thử chính trên *
 - Điều hướng hoàn toàn bằng D-pad: `▲`, `▼`, `◀`, `▶`, `OK` và các phím góc.
 - Mở nhanh Điện thoại, Danh bạ và Nhắn tin hệ thống.
 - Vuốt ngang trên Home để mở hành động hoặc ứng dụng đã gán; vuốt lên để mở Drawer.
+- Có thể bật/tắt animation: Drawer được hé lộ từ đáy bằng cung tròn có bán kính tăng dần và thu ngược khi về Home; Cấu hình mở rộng hình tròn từ điểm nhấn giữ.
 - Chuyển giữa chế độ Chuông và Rung bằng cách giữ phím `#` khoảng 5 giây.
 - Khóa màn hình thật qua Android Device Admin.
 - Tự khôi phục launcher khi desktop OEM `com.dp.op` của Doov cố mở đè.
-- Lưu cục bộ màu nền, cỡ chữ, trạng thái thanh thông báo, số app Home, gán phím và hành động vuốt.
+- Lưu cục bộ màu nền, cỡ chữ, trạng thái thanh thông báo, animation, số app Home, gán phím và hành động vuốt.
 - Không cần kết nối mạng và không yêu cầu quyền gọi điện trực tiếp; ứng dụng chỉ mở dialer với số được điền sẵn.
 
 ## Bố trí phím mặc định
@@ -172,7 +173,7 @@ Tại Home, giữ khoảng **700 ms** vào vùng trống bên dưới danh sách
 
 Màn hình Cấu hình được chia thành 6 tab:
 
-- **Hiển thị:** màu/wallpaper, cỡ chữ 12–36 sp, số app Home và thanh thông báo.
+- **Hiển thị:** màu/wallpaper, cỡ chữ 12–36 sp, số app Home, thanh thông báo và tùy chọn **Có animation**.
 - **Drawer:** kiểu danh sách/lưới, số cột, số hàng, kích thước và bo góc icon.
 - **Phím T9:** chế độ **Quick action** hoặc **Quay số** cho phím số ở Home.
 - **Cử chỉ:** hành động vuốt hai chiều, gồm tắt, Danh bạ, Nhắn tin hoặc một ứng dụng.
@@ -180,6 +181,8 @@ Màn hình Cấu hình được chia thành 6 tab:
 - **Tác giả:** hiển thị tác giả `ducseul`, loại build và phiên bản được Gradle tự sinh theo định dạng `yy.MMdd-HHmm` khi tạo APK.
 
 Dùng `◀ ▶` để chuyển tab, `▲ ▼` để chọn, phím số `4`/`6` để giảm/tăng nhanh và `OK` để đổi hoặc mở các mục cần danh sách chọn. Phím góc `1` **Lưu và đóng**, phím góc `2` **Thoát** về Home; hai nhãn này luôn hiện ở hai góc dưới màn hình Cấu hình. Các thay đổi được áp dụng và lưu ngay khi chỉnh nên Thoát không hoàn tác giá trị đã đổi. Dải tab tự cuộn để hiện trọn tab đang chọn; icon `◀`/`▶` ở hai mép cho biết vẫn còn tab bị khuất và cũng có thể chạm để chuyển. Trên màn hình cảm ứng còn có thể chạm tên tab hoặc vuốt ngang.
+
+Khi **Có animation** được bật (mặc định), nội dung Drawer đứng nguyên tại vị trí cuối và được hé lộ từ dưới lên bởi một cung tròn có bán kính tăng dần; khi quay về Home, bán kính co ngược về đáy. Viền cung là một dải màu: primary đậm ở lõi rồi chuyển qua các sắc amber sáng và nhạt dần về phía ngoài. Màn hình Cấu hình dùng circular reveal với tâm tại vị trí nhấn giữ và cùng kiểu viền. Tắt tùy chọn này nếu thiết bị yếu hoặc chuyển cảnh không mượt.
 
 ## Kiểm thử
 

@@ -32,7 +32,7 @@
 - Cold start launcher: mục tiêu dưới **1.5 giây** trên thiết bị tham chiếu; không load toàn bộ icon app trước khi Drawer mở.
 - RAM nền của launcher: mục tiêu dưới **64 MB**; không giữ bitmap màn hình lớn trong memory.
 - UI thread không được chạy tác vụ I/O, quét package hoặc giải mã ảnh đồng bộ.
-- Chuyển màn hình chỉ dùng animation ngắn dưới 250 ms; có thể tắt animation nếu máy giật.
+- Chuyển màn hình chỉ dùng animation ngắn dưới 250 ms; tùy chọn **Có animation** cho phép tắt toàn bộ chuyển cảnh nếu máy giật.
 - Danh sách app phải lazy-load và cache nhỏ; chỉ giữ dữ liệu cần cho tên, package, icon hiện tại.
 
 ### Điều chỉnh hành vi theo profile
@@ -68,7 +68,8 @@ Profile mặc định của bản đầu tiên là **3.5 inch / Doov R17 Pro**. 
 - Nhấn giữ khoảng **700 ms** vào vùng trống bên dưới danh sách app trên Home sẽ mở “Cấu hình launcher”. Nhấn vào một dòng app không được mở app trong thời gian giữ.
 - Dùng ▲▼ để chọn dòng, OK để đổi giá trị, phím góc 1 để lưu và đóng,
   phím góc 2 để thoát về Home. Hai nhãn thao tác hiển thị ở hai góc dưới màn hình.
-- Có thể đổi: màu/wallpaper tĩnh, cỡ chữ dạng số 12–24 sp, số lượng app Home từ 1–9 và app được gán cho từng phím 1–9 (bao gồm “Chưa gán”).
+- Có thể đổi: màu/wallpaper tĩnh, cỡ chữ dạng số 12–36 sp, số lượng app Home từ 1–9, bật/tắt animation và app được gán cho từng phím 1–9 (bao gồm “Chưa gán”).
+- Khi bật animation, nội dung Drawer không xê dịch mà được hé lộ từ dưới lên bằng cung tròn có bán kính tăng dần; bán kính co ngược khi quay về Home. Biên reveal dùng dải màu primary đậm ở lõi, chuyển qua các sắc amber sáng hơn và nhạt dần về phía ngoài. Cấu hình mở bằng circular reveal, lấy điểm nhấn giữ làm tâm và dùng cùng kiểu viền.
 - Cấu hình lưu cục bộ bằng Preferences; không cần mạng và không yêu cầu quyền hệ thống.
 
 Tài liệu mô tả toàn bộ hành vi của launcher dựa trên prototype `t9-launcher-mockup.html`, dùng làm tham chiếu khi lên thiết kế kỹ thuật / giao việc dev.
@@ -125,6 +126,7 @@ Tài liệu mô tả toàn bộ hành vi của launcher dựa trên prototype `t
   Grid mặc định 4 cột × 5 hàng, cho phép chỉnh động số cột/hàng và hiển thị icon + tên bên dưới.
 - Ô tìm kiếm ở đầu, gõ bằng T9 multi-tap; không có kết quả → hiện "Không tìm thấy app"
 - Chọn item bằng ▲▼◀▶, mở bằng OK hoặc chạm trực tiếp
+- Nếu **Có animation** được bật, Drawer giữ nguyên vị trí và được hé lộ từ đáy bằng cung tròn có bán kính tăng dần; cung tròn thu ngược khi đóng.
 
 ## 5. Màn hình Gọi điện (Dialer)
 
@@ -134,13 +136,13 @@ Tài liệu mô tả toàn bộ hành vi của launcher dựa trên prototype `t
 
 ## 6. Cấu hình riêng của launcher
 
-**Cách vào:** giữ 5 giây vào một vị trí **trống** trên Home (không phải app) → mở màn Cấu hình.
+**Cách vào:** giữ khoảng 700 ms vào một vị trí **trống** trên Home (không phải app) → mở màn Cấu hình bằng circular reveal tại điểm nhấn giữ nếu animation đang bật.
 
 Gồm 6 tab, chuyển bằng **◀ ▶**:
 
 | Tab | Điều khiển | Hành vi |
 |---|---|---|
-| **Hiển thị** | ▲▼ chọn · OK để đổi | Màu/wallpaper, cỡ chữ 12–36 sp, số app Home và thanh thông báo |
+| **Hiển thị** | ▲▼ chọn · OK để đổi | Màu/wallpaper, cỡ chữ 12–36 sp, số app Home, thanh thông báo và tùy chọn Có animation |
 | **Drawer** | ▲▼ chọn · OK để đổi | Kiểu danh sách/lưới, số cột, số hàng, kích thước và bo góc icon |
 | **Phím T9** | ▲▼ chọn · OK để đổi | Chuyển phím số Home giữa Quick action và Quay số |
 | **Cử chỉ** | ▲▼ chọn · OK để mở/chọn | Gán hành động hoặc ứng dụng cho hai hướng vuốt ngang |

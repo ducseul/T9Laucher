@@ -8,6 +8,7 @@ import com.t9launcher.model.LauncherConfiguration;
 import static com.t9launcher.model.LauncherConfiguration.ACTION_CONTACTS;
 import static com.t9launcher.model.LauncherConfiguration.ACTION_MESSAGING;
 import static com.t9launcher.model.LauncherConfiguration.BINDING_COUNT;
+import static com.t9launcher.model.LauncherConfiguration.DEFAULT_CLOCK_FONT_SIZE_SP;
 import static com.t9launcher.model.LauncherConfiguration.DEFAULT_DRAWER_GRID_COLUMNS;
 import static com.t9launcher.model.LauncherConfiguration.DEFAULT_DRAWER_GRID_ICON_CORNER_RADIUS_DP;
 import static com.t9launcher.model.LauncherConfiguration.DEFAULT_DRAWER_GRID_ICON_SIZE_DP;
@@ -32,7 +33,9 @@ public final class SharedPreferencesLauncherSettingsStore implements LauncherSet
                 preferences.getInt("homeCount", 4),
                 preferences.getInt("wallpaper", 0),
                 preferences.getInt("fontSizeSp", 14),
+                preferences.getInt("clockFontSizeSp", DEFAULT_CLOCK_FONT_SIZE_SP),
                 preferences.getBoolean("showStatusBar", true),
+                preferences.getBoolean("animationsEnabled", true),
                 preferences.getInt("drawerLayout", DRAWER_LAYOUT_LIST),
                 preferences.getInt("drawerGridColumns", DEFAULT_DRAWER_GRID_COLUMNS),
                 preferences.getInt("drawerGridRows", DEFAULT_DRAWER_GRID_ROWS),
@@ -51,7 +54,9 @@ public final class SharedPreferencesLauncherSettingsStore implements LauncherSet
                 .putInt("homeCount", configuration.homeCount)
                 .putInt("wallpaper", configuration.wallpaperIndex)
                 .putInt("fontSizeSp", configuration.fontSizeSp)
+                .putInt("clockFontSizeSp", configuration.clockFontSizeSp)
                 .putBoolean("showStatusBar", configuration.showStatusBar)
+                .putBoolean("animationsEnabled", configuration.animationsEnabled)
                 .putInt("drawerLayout", configuration.drawerLayout)
                 .putInt("drawerGridColumns", configuration.drawerGridColumns)
                 .putInt("drawerGridRows", configuration.drawerGridRows)

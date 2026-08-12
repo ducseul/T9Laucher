@@ -23,11 +23,17 @@ public final class LauncherConfiguration {
     public static final int MAX_DRAWER_GRID_ICON_SIZE_DP = 64;
     public static final int MIN_DRAWER_GRID_ICON_CORNER_RADIUS_DP = 0;
     public static final int MAX_DRAWER_GRID_ICON_CORNER_RADIUS_DP = 24;
+    public static final int DEFAULT_CLOCK_FONT_SIZE_SP = 32;
+    public static final int MIN_CLOCK_FONT_SIZE_SP = 24;
+    public static final int MAX_CLOCK_FONT_SIZE_SP = 48;
+    public static final int MIN_DATE_FONT_SIZE_SP = 14;
 
     public final int homeCount;
     public final int wallpaperIndex;
     public final int fontSizeSp;
+    public final int clockFontSizeSp;
     public final boolean showStatusBar;
+    public final boolean animationsEnabled;
     public final int drawerLayout;
     public final int drawerGridColumns;
     public final int drawerGridRows;
@@ -64,10 +70,40 @@ public final class LauncherConfiguration {
                                  int drawerGridIconSizeDp, int drawerGridIconCornerRadiusDp,
                                  int homeKeyBehavior, int swipeLeftToRightAction,
                                  int swipeRightToLeftAction, int[] bindings) {
+        this(homeCount, wallpaperIndex, fontSizeSp, showStatusBar, true,
+                drawerLayout, drawerGridColumns, drawerGridRows,
+                drawerGridIconSizeDp, drawerGridIconCornerRadiusDp,
+                homeKeyBehavior, swipeLeftToRightAction, swipeRightToLeftAction,
+                bindings);
+    }
+
+    public LauncherConfiguration(int homeCount, int wallpaperIndex, int fontSizeSp,
+                                 boolean showStatusBar, boolean animationsEnabled,
+                                 int drawerLayout, int drawerGridColumns, int drawerGridRows,
+                                 int drawerGridIconSizeDp, int drawerGridIconCornerRadiusDp,
+                                 int homeKeyBehavior, int swipeLeftToRightAction,
+                                 int swipeRightToLeftAction, int[] bindings) {
+        this(homeCount, wallpaperIndex, fontSizeSp, DEFAULT_CLOCK_FONT_SIZE_SP,
+                showStatusBar, animationsEnabled, drawerLayout, drawerGridColumns,
+                drawerGridRows, drawerGridIconSizeDp, drawerGridIconCornerRadiusDp,
+                homeKeyBehavior, swipeLeftToRightAction, swipeRightToLeftAction,
+                bindings);
+    }
+
+    public LauncherConfiguration(int homeCount, int wallpaperIndex, int fontSizeSp,
+                                 int clockFontSizeSp, boolean showStatusBar,
+                                 boolean animationsEnabled, int drawerLayout,
+                                 int drawerGridColumns, int drawerGridRows,
+                                 int drawerGridIconSizeDp, int drawerGridIconCornerRadiusDp,
+                                 int homeKeyBehavior, int swipeLeftToRightAction,
+                                 int swipeRightToLeftAction, int[] bindings) {
         this.homeCount = clamp(homeCount, 1, BINDING_COUNT);
         this.wallpaperIndex = clamp(wallpaperIndex, 0, 3);
         this.fontSizeSp = clamp(fontSizeSp, 12, 36);
+        this.clockFontSizeSp = clamp(clockFontSizeSp,
+                MIN_CLOCK_FONT_SIZE_SP, MAX_CLOCK_FONT_SIZE_SP);
         this.showStatusBar = showStatusBar;
+        this.animationsEnabled = animationsEnabled;
         this.drawerLayout = drawerLayout == DRAWER_LAYOUT_GRID
                 ? DRAWER_LAYOUT_GRID : DRAWER_LAYOUT_LIST;
         this.drawerGridColumns = clamp(drawerGridColumns,
@@ -84,6 +120,14 @@ public final class LauncherConfiguration {
         this.swipeLeftToRightAction = swipeLeftToRightAction;
         this.swipeRightToLeftAction = swipeRightToLeftAction;
         this.bindings = normalizedBindings(bindings);
+    }
+
+    public int dateFontSizeSp() {
+        return dateFontSizeSp(clockFontSizeSp);
+    }
+
+    public static int dateFontSizeSp(int clockFontSizeSp) {
+        return Math.max(MIN_DATE_FONT_SIZE_SP, Math.round(clockFontSizeSp * 0.65f));
     }
 
     private static int[] normalizedBindings(int[] source) {

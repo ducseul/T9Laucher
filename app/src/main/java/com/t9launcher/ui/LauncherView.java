@@ -42,14 +42,17 @@ import com.t9launcher.system.LauncherActions;
 import static com.t9launcher.model.LauncherConfiguration.ACTION_CONTACTS;
 import static com.t9launcher.model.LauncherConfiguration.ACTION_MESSAGING;
 import static com.t9launcher.model.LauncherConfiguration.ACTION_NONE;
+import static com.t9launcher.model.LauncherConfiguration.DEFAULT_CLOCK_FONT_SIZE_SP;
 import static com.t9launcher.model.LauncherConfiguration.DRAWER_LAYOUT_GRID;
 import static com.t9launcher.model.LauncherConfiguration.DRAWER_LAYOUT_LIST;
 import static com.t9launcher.model.LauncherConfiguration.HOME_KEYS_DIALER;
 import static com.t9launcher.model.LauncherConfiguration.HOME_KEYS_QUICK_ACTION;
+import static com.t9launcher.model.LauncherConfiguration.MAX_CLOCK_FONT_SIZE_SP;
 import static com.t9launcher.model.LauncherConfiguration.MAX_DRAWER_GRID_COLUMNS;
 import static com.t9launcher.model.LauncherConfiguration.MAX_DRAWER_GRID_ICON_CORNER_RADIUS_DP;
 import static com.t9launcher.model.LauncherConfiguration.MAX_DRAWER_GRID_ICON_SIZE_DP;
 import static com.t9launcher.model.LauncherConfiguration.MAX_DRAWER_GRID_ROWS;
+import static com.t9launcher.model.LauncherConfiguration.MIN_CLOCK_FONT_SIZE_SP;
 import static com.t9launcher.model.LauncherConfiguration.MIN_DRAWER_GRID_COLUMNS;
 import static com.t9launcher.model.LauncherConfiguration.MIN_DRAWER_GRID_ICON_CORNER_RADIUS_DP;
 import static com.t9launcher.model.LauncherConfiguration.MIN_DRAWER_GRID_ICON_SIZE_DP;
@@ -57,15 +60,19 @@ import static com.t9launcher.model.LauncherConfiguration.MIN_DRAWER_GRID_ROWS;
 
 @SuppressLint("ViewConstructor")
 public final class LauncherView extends View {
-    private static final int SETTINGS_ROW_COUNT = 12;
-    private static final int SETTING_DRAWER_LAYOUT = 4;
-    private static final int SETTING_DRAWER_GRID_COLUMNS = 5;
-    private static final int SETTING_DRAWER_GRID_ROWS = 6;
-    private static final int SETTING_DRAWER_GRID_ICON_SIZE = 7;
-    private static final int SETTING_DRAWER_GRID_ICON_CORNER_RADIUS = 8;
-    private static final int SETTING_HOME_KEY_BEHAVIOR = 9;
-    private static final int SETTING_SWIPE_LEFT_TO_RIGHT = 10;
-    private static final int SETTING_SWIPE_RIGHT_TO_LEFT = 11;
+    private static final int SETTINGS_ROW_COUNT = 14;
+    private static final int SETTING_CLOCK_FONT_SIZE = 2;
+    private static final int SETTING_HOME_COUNT = 3;
+    private static final int SETTING_STATUS_BAR = 4;
+    private static final int SETTING_ANIMATIONS = 5;
+    private static final int SETTING_DRAWER_LAYOUT = 6;
+    private static final int SETTING_DRAWER_GRID_COLUMNS = 7;
+    private static final int SETTING_DRAWER_GRID_ROWS = 8;
+    private static final int SETTING_DRAWER_GRID_ICON_SIZE = 9;
+    private static final int SETTING_DRAWER_GRID_ICON_CORNER_RADIUS = 10;
+    private static final int SETTING_HOME_KEY_BEHAVIOR = 11;
+    private static final int SETTING_SWIPE_LEFT_TO_RIGHT = 12;
+    private static final int SETTING_SWIPE_RIGHT_TO_LEFT = 13;
     private static final int SETTINGS_TAB_DISPLAY = 0;
     private static final int SETTINGS_TAB_DRAWER = 1;
     private static final int SETTINGS_TAB_HOME_KEYS = 2;
@@ -89,6 +96,12 @@ public final class LauncherView extends View {
     private static final int PICKER_SWIPE_LEFT_TO_RIGHT = 1;
     private static final int PICKER_SWIPE_RIGHT_TO_LEFT = 2;
     private static final long DRAWER_LAUNCH_DEBOUNCE_MS = 300L;
+    private static final long DRAWER_ANIMATION_DURATION_MS = 240L;
+    private static final long SETTINGS_REVEAL_DURATION_MS = 220L;
+    private static final int ANIMATION_NONE = 0;
+    private static final int ANIMATION_DRAWER_ENTER = 1;
+    private static final int ANIMATION_DRAWER_EXIT = 2;
+    private static final int ANIMATION_SETTINGS_REVEAL = 3;
 
     private static final class HomeLayout {
         final float clockSizeSp;
@@ -144,7 +157,9 @@ public final class LauncherView extends View {
     private int homeCount = 4;
     private int wallpaperIndex = 0;
     private int fontSizeSp = 14;
+    private int clockFontSizeSp = DEFAULT_CLOCK_FONT_SIZE_SP;
     private boolean showStatusBar = true;
+    private boolean animationsEnabled = true;
     private int drawerLayout = DRAWER_LAYOUT_LIST;
     private int drawerGridColumns = 4;
     private int drawerGridRows = 5;
@@ -166,6 +181,10 @@ public final class LauncherView extends View {
     private int touchSettingsTabDirection = 0;
     private boolean touchMoved;
     private boolean holdTriggered;
+    private int activeAnimation = ANIMATION_NONE;
+    private long animationStartedAt;
+    private float settingsRevealCenterX;
+    private float settingsRevealCenterY;
     private final Handler touchHandler = new Handler();
     private Runnable holdAction;
     private final int amber = Color.rgb(255, 180, 84);
@@ -231,6 +250,17 @@ public final class LauncherView extends View {
     public void goHome() {
         if (screen == LauncherScreen.SETTINGS || screen == LauncherScreen.APP_PICKER) savePrefs();
         locked = false;
+        if (screen == LauncherScreen.DRAWER && animationsEnabled) {
+            if (activeAnimation != ANIMATION_DRAWER_EXIT) {
+                startAnimation(ANIMATION_DRAWER_EXIT);
+            }
+            return;
+        }
+        finishGoHome();
+    }
+
+    private void finishGoHome() {
+        activeAnimation = ANIMATION_NONE;
         screen = LauncherScreen.HOME;
         settingsHintScrollStartedAt = 0L;
         drawerTextInput.clear();
@@ -273,11 +303,151 @@ public final class LauncherView extends View {
             return;
         }
         drawStatus(c);
+        if (screen == LauncherScreen.DRAWER
+                && (activeAnimation == ANIMATION_DRAWER_ENTER
+                || activeAnimation == ANIMATION_DRAWER_EXIT)) {
+            drawAnimatedDrawer(c);
+            return;
+        }
+        if (screen == LauncherScreen.SETTINGS
+                && activeAnimation == ANIMATION_SETTINGS_REVEAL) {
+            drawSettingsReveal(c);
+            return;
+        }
         if (screen == LauncherScreen.HOME) drawHome(c);
         else if (screen == LauncherScreen.DRAWER) drawDrawer(c);
         else if (screen == LauncherScreen.SETTINGS) drawSettings(c);
         else if (screen == LauncherScreen.APP_PICKER) drawAppPicker(c);
         else drawHome(c);
+    }
+
+    private void drawAnimatedDrawer(Canvas c) {
+        float progress = animationProgress(DRAWER_ANIMATION_DURATION_MS);
+        if (progress >= 1f) {
+            if (activeAnimation == ANIMATION_DRAWER_EXIT) {
+                finishGoHome();
+                drawHome(c);
+            } else {
+                activeAnimation = ANIMATION_NONE;
+                drawDrawer(c);
+            }
+            return;
+        }
+
+        float eased = smoothStep(progress);
+        float visible = activeAnimation == ANIMATION_DRAWER_EXIT ? 1f - eased : eased;
+        int drawerSelection = selected;
+        drawHome(c);
+        selected = drawerSelection;
+
+        float centerX = getWidth() / 2f;
+        float centerY = getHeight();
+        float maxRadius = (float) Math.hypot(
+                Math.max(centerX, getWidth() - centerX), centerY);
+        Path reveal = new Path();
+        reveal.addCircle(centerX, centerY, maxRadius * visible, Path.Direction.CW);
+        int saveCount = c.save();
+        c.clipPath(reveal);
+        c.drawColor(backgroundColor());
+        drawStatus(c);
+        drawDrawer(c);
+        c.restoreToCount(saveCount);
+        drawRevealEdge(c, centerX, centerY, maxRadius * visible);
+        postInvalidateOnAnimation();
+    }
+
+    private void drawSettingsReveal(Canvas c) {
+        float progress = animationProgress(SETTINGS_REVEAL_DURATION_MS);
+        if (progress >= 1f) {
+            activeAnimation = ANIMATION_NONE;
+            drawSettings(c);
+            return;
+        }
+
+        drawHome(c);
+        float eased = smoothStep(progress);
+        float farthestX = Math.max(settingsRevealCenterX,
+                getWidth() - settingsRevealCenterX);
+        float farthestY = Math.max(settingsRevealCenterY,
+                getHeight() - settingsRevealCenterY);
+        float radius = (float) Math.hypot(farthestX, farthestY) * eased;
+        Path reveal = new Path();
+        reveal.addCircle(settingsRevealCenterX, settingsRevealCenterY,
+                radius, Path.Direction.CW);
+        int saveCount = c.save();
+        c.clipPath(reveal);
+        c.drawColor(backgroundColor());
+        drawStatus(c);
+        drawSettings(c);
+        c.restoreToCount(saveCount);
+        drawRevealEdge(c, settingsRevealCenterX, settingsRevealCenterY, radius);
+        postInvalidateOnAnimation();
+    }
+
+    private void drawRevealEdge(Canvas c, float centerX, float centerY, float radius) {
+        if (radius <= 0f) return;
+        p.setStyle(Paint.Style.STROKE);
+
+        p.setStrokeWidth(dp(18f));
+        p.setColor(Color.argb(22, 255, 244, 225));
+        c.drawCircle(centerX, centerY, radius, p);
+
+        p.setStrokeWidth(dp(12f));
+        p.setColor(Color.argb(46, 255, 226, 185));
+        c.drawCircle(centerX, centerY, radius, p);
+
+        p.setStrokeWidth(dp(7f));
+        p.setColor(Color.argb(92, 255, 202, 132));
+        c.drawCircle(centerX, centerY, radius, p);
+
+        p.setStrokeWidth(dp(2f));
+        p.setColor(Color.argb(205, 255, 180, 84));
+        c.drawCircle(centerX, centerY, radius, p);
+        p.setStyle(Paint.Style.FILL);
+    }
+
+    private float animationProgress(long durationMs) {
+        return Math.min(1f, Math.max(0f,
+                (SystemClock.uptimeMillis() - animationStartedAt) / (float) durationMs));
+    }
+
+    private static float smoothStep(float value) {
+        return value * value * (3f - 2f * value);
+    }
+
+    private void startAnimation(int animation) {
+        activeAnimation = animation;
+        animationStartedAt = SystemClock.uptimeMillis();
+        postInvalidateOnAnimation();
+    }
+
+    private void openDrawer() {
+        screen = LauncherScreen.DRAWER;
+        selected = 0;
+        drawerOffset = 0;
+        drawerTextInput.clear();
+        drawerTextInput.refresh(true);
+        if (animationsEnabled) startAnimation(ANIMATION_DRAWER_ENTER);
+        else {
+            activeAnimation = ANIMATION_NONE;
+            invalidate();
+        }
+    }
+
+    private void openSettingsAt(float centerX, float centerY) {
+        screen = LauncherScreen.SETTINGS;
+        settingsHintScrollStartedAt = 0L;
+        settingsTab = SETTINGS_TAB_DISPLAY;
+        settingsSelection = 0;
+        settingsTabSelections[settingsTab] = settingsSelection;
+        settingsOffset = 0;
+        settingsRevealCenterX = Math.max(0f, Math.min(getWidth(), centerX));
+        settingsRevealCenterY = Math.max(0f, Math.min(getHeight(), centerY));
+        if (animationsEnabled) startAnimation(ANIMATION_SETTINGS_REVEAL);
+        else {
+            activeAnimation = ANIMATION_NONE;
+            invalidate();
+        }
     }
 
     private void text(Canvas c, String s, float x, float y, float size, int color) {
@@ -336,8 +506,8 @@ public final class LauncherView extends View {
     }
 
     private HomeLayout homeLayout() {
-        float clockSizeSp = Math.min(36, fontSizeSp + 5);
-        float dateSizeSp = Math.max(12, fontSizeSp - 5);
+        float clockSizeSp = clockFontSizeSp;
+        float dateSizeSp = LauncherConfiguration.dateFontSizeSp(clockFontSizeSp);
 
         p.setTypeface(Typeface.create("monospace", Typeface.BOLD));
         p.setTextSize(dp(clockSizeSp));
@@ -585,10 +755,11 @@ public final class LauncherView extends View {
             drawSettingsSoftKeys(c);
             return;
         }
-        String[] rows = {"Màu / wallpaper", "Cỡ chữ", "Số app ở Home",
-                "Hiển thị Thanh thông báo", "Kiểu Drawer", "Số cột Grid",
-                "Số hàng Grid", "Kích thước icon Grid", "Bo góc icon Grid",
-                "Phím số ở Home", "Vuốt trái → phải", "Vuốt phải → trái"};
+        String[] rows = {"Màu / wallpaper", "Cỡ chữ", "Cỡ chữ Đồng hồ",
+                "Số app ở Home", "Hiển thị Thanh thông báo", "Có animation", "Kiểu Drawer",
+                "Số cột Grid", "Số hàng Grid", "Kích thước icon Grid",
+                "Bo góc icon Grid", "Phím số ở Home", "Vuốt trái → phải",
+                "Vuốt phải → trái"};
         int total = rows.length + homeCount;
         settingsSelection = Math.max(0, Math.min(total - 1, settingsSelection));
         if (!isSettingsItemVisible(settingsSelection)) {
@@ -1009,8 +1180,10 @@ public final class LauncherView extends View {
     private String settingValue(int row) {
         if (row == 0) return new String[]{"Than chì", "Hoàng hôn", "Đại dương", "Rừng"}[wallpaperIndex % 4];
         if (row == 1) return fontSizeSp + " sp";
-        if (row == 2) return String.valueOf(homeCount);
-        if (row == 3) return showStatusBar ? "[x]" : "[ ]";
+        if (row == SETTING_CLOCK_FONT_SIZE) return clockFontSizeSp + " sp";
+        if (row == SETTING_HOME_COUNT) return String.valueOf(homeCount);
+        if (row == SETTING_STATUS_BAR) return showStatusBar ? "[x]" : "[ ]";
+        if (row == SETTING_ANIMATIONS) return animationsEnabled ? "[x]" : "[ ]";
         if (row == SETTING_DRAWER_LAYOUT) {
             return drawerLayout == DRAWER_LAYOUT_GRID ? "Grid" : "Danh sách";
         }
@@ -1126,7 +1299,9 @@ public final class LauncherView extends View {
         homeCount = configuration.homeCount;
         wallpaperIndex = configuration.wallpaperIndex;
         fontSizeSp = configuration.fontSizeSp;
+        clockFontSizeSp = configuration.clockFontSizeSp;
         showStatusBar = configuration.showStatusBar;
+        animationsEnabled = configuration.animationsEnabled;
         drawerLayout = configuration.drawerLayout;
         drawerGridColumns = configuration.drawerGridColumns;
         drawerGridRows = configuration.drawerGridRows;
@@ -1140,7 +1315,8 @@ public final class LauncherView extends View {
 
     private void savePrefs() {
         settingsStore.save(new LauncherConfiguration(
-                homeCount, wallpaperIndex, fontSizeSp, showStatusBar,
+                homeCount, wallpaperIndex, fontSizeSp, clockFontSizeSp,
+                showStatusBar, animationsEnabled,
                 drawerLayout, drawerGridColumns, drawerGridRows,
                 drawerGridIconSizeDp, drawerGridIconCornerRadiusDp,
                 homeKeyBehavior, swipeLeftToRightAction, swipeRightToLeftAction,
@@ -1152,8 +1328,13 @@ public final class LauncherView extends View {
             wallpaperIndex = (wallpaperIndex + delta + 4) % 4;
         } else if (settingsSelection == 1) {
             fontSizeSp = Math.max(12, Math.min(36, fontSizeSp + delta));
-        } else if (settingsSelection == 2) {
+        } else if (settingsSelection == SETTING_CLOCK_FONT_SIZE) {
+            clockFontSizeSp = Math.max(MIN_CLOCK_FONT_SIZE_SP,
+                    Math.min(MAX_CLOCK_FONT_SIZE_SP, clockFontSizeSp + delta));
+        } else if (settingsSelection == SETTING_HOME_COUNT) {
             homeCount = Math.max(1, Math.min(9, homeCount + delta));
+        } else if (settingsSelection == SETTING_ANIMATIONS) {
+            animationsEnabled = !animationsEnabled;
         } else if (settingsSelection == SETTING_DRAWER_LAYOUT) {
             drawerLayout = drawerLayout == DRAWER_LAYOUT_GRID
                     ? DRAWER_LAYOUT_LIST : DRAWER_LAYOUT_GRID;
@@ -1189,10 +1370,17 @@ public final class LauncherView extends View {
     private void changeSetting() {
         if (settingsSelection == 0) wallpaperIndex = (wallpaperIndex + 1) % 4;
         else if (settingsSelection == 1) fontSizeSp = fontSizeSp == 36 ? 12 : fontSizeSp + 1;
-        else if (settingsSelection == 2) homeCount = homeCount % 9 + 1;
-        else if (settingsSelection == 3) {
+        else if (settingsSelection == SETTING_CLOCK_FONT_SIZE) {
+            clockFontSizeSp = clockFontSizeSp == MAX_CLOCK_FONT_SIZE_SP
+                    ? MIN_CLOCK_FONT_SIZE_SP : clockFontSizeSp + 1;
+        }
+        else if (settingsSelection == SETTING_HOME_COUNT) homeCount = homeCount % 9 + 1;
+        else if (settingsSelection == SETTING_STATUS_BAR) {
             showStatusBar = !showStatusBar;
             actions.setStatusBarVisible(showStatusBar);
+        }
+        else if (settingsSelection == SETTING_ANIMATIONS) {
+            animationsEnabled = !animationsEnabled;
         }
         else if (settingsSelection == SETTING_DRAWER_LAYOUT) {
             drawerLayout = drawerLayout == DRAWER_LAYOUT_GRID
@@ -1273,11 +1461,7 @@ public final class LauncherView extends View {
                 return;
             }
             if (screen != LauncherScreen.HOME) {
-                if (screen == LauncherScreen.SETTINGS) savePrefs();
-                screen = LauncherScreen.HOME;
-                drawerTextInput.clear();
-                drawerTextInput.refresh(false);
-                invalidate();
+                goHome();
             }
             return;
         }
@@ -1354,11 +1538,7 @@ public final class LauncherView extends View {
             return;
         }
         if (key == LauncherKey.CORNER_1) {
-            screen = LauncherScreen.DRAWER;
-            selected = 0;
-            drawerOffset = 0;
-            drawerTextInput.refresh(true);
-            invalidate();
+            openDrawer();
             return;
         }
         if (key == LauncherKey.CORNER_4) {
@@ -1626,13 +1806,7 @@ public final class LauncherView extends View {
                     && event.getY() > dp(homeListBottomDp(homeLayout()))) {
                 holdAction = () -> {
                     holdTriggered = true;
-                    screen = LauncherScreen.SETTINGS;
-                    settingsHintScrollStartedAt = 0L;
-                    settingsTab = SETTINGS_TAB_DISPLAY;
-                    settingsSelection = 0;
-                    settingsTabSelections[settingsTab] = settingsSelection;
-                    settingsOffset = 0;
-                    invalidate();
+                    openSettingsAt(touchDownX, touchDownY);
                 };
                 touchHandler.postDelayed(holdAction, 700);
             }
@@ -1688,12 +1862,7 @@ public final class LauncherView extends View {
             if (!locked && !holdTriggered && screen == touchScreen
                     && touchScreen == LauncherScreen.HOME && touchIndex < 0
                     && dy < -dp(80)) {
-                screen = LauncherScreen.DRAWER;
-                selected = 0;
-                drawerOffset = 0;
-                drawerTextInput.clear();
-                drawerTextInput.refresh(true);
-                invalidate();
+                openDrawer();
                 return true;
             }
             if (!holdTriggered && !touchMoved) {
