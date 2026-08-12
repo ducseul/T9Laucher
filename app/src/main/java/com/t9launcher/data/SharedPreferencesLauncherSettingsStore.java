@@ -8,6 +8,11 @@ import com.t9launcher.model.LauncherConfiguration;
 import static com.t9launcher.model.LauncherConfiguration.ACTION_CONTACTS;
 import static com.t9launcher.model.LauncherConfiguration.ACTION_MESSAGING;
 import static com.t9launcher.model.LauncherConfiguration.BINDING_COUNT;
+import static com.t9launcher.model.LauncherConfiguration.DEFAULT_DRAWER_GRID_COLUMNS;
+import static com.t9launcher.model.LauncherConfiguration.DEFAULT_DRAWER_GRID_ICON_CORNER_RADIUS_DP;
+import static com.t9launcher.model.LauncherConfiguration.DEFAULT_DRAWER_GRID_ICON_SIZE_DP;
+import static com.t9launcher.model.LauncherConfiguration.DEFAULT_DRAWER_GRID_ROWS;
+import static com.t9launcher.model.LauncherConfiguration.DRAWER_LAYOUT_LIST;
 import static com.t9launcher.model.LauncherConfiguration.HOME_KEYS_QUICK_ACTION;
 
 public final class SharedPreferencesLauncherSettingsStore implements LauncherSettingsStore {
@@ -28,6 +33,12 @@ public final class SharedPreferencesLauncherSettingsStore implements LauncherSet
                 preferences.getInt("wallpaper", 0),
                 preferences.getInt("fontSizeSp", 14),
                 preferences.getBoolean("showStatusBar", true),
+                preferences.getInt("drawerLayout", DRAWER_LAYOUT_LIST),
+                preferences.getInt("drawerGridColumns", DEFAULT_DRAWER_GRID_COLUMNS),
+                preferences.getInt("drawerGridRows", DEFAULT_DRAWER_GRID_ROWS),
+                preferences.getInt("drawerGridIconSizeDp", DEFAULT_DRAWER_GRID_ICON_SIZE_DP),
+                preferences.getInt("drawerGridIconCornerRadiusDp",
+                        DEFAULT_DRAWER_GRID_ICON_CORNER_RADIUS_DP),
                 preferences.getInt("homeKeyBehavior", HOME_KEYS_QUICK_ACTION),
                 preferences.getInt("swipeLeftToRightAction", ACTION_CONTACTS),
                 preferences.getInt("swipeRightToLeftAction", ACTION_MESSAGING),
@@ -41,6 +52,12 @@ public final class SharedPreferencesLauncherSettingsStore implements LauncherSet
                 .putInt("wallpaper", configuration.wallpaperIndex)
                 .putInt("fontSizeSp", configuration.fontSizeSp)
                 .putBoolean("showStatusBar", configuration.showStatusBar)
+                .putInt("drawerLayout", configuration.drawerLayout)
+                .putInt("drawerGridColumns", configuration.drawerGridColumns)
+                .putInt("drawerGridRows", configuration.drawerGridRows)
+                .putInt("drawerGridIconSizeDp", configuration.drawerGridIconSizeDp)
+                .putInt("drawerGridIconCornerRadiusDp",
+                        configuration.drawerGridIconCornerRadiusDp)
                 .putInt("homeKeyBehavior", configuration.homeKeyBehavior)
                 .putInt("swipeLeftToRightAction", configuration.swipeLeftToRightAction)
                 .putInt("swipeRightToLeftAction", configuration.swipeRightToLeftAction);

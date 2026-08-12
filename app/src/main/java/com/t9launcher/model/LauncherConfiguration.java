@@ -9,11 +9,30 @@ public final class LauncherConfiguration {
     public static final int ACTION_MESSAGING = -3;
     public static final int HOME_KEYS_QUICK_ACTION = 0;
     public static final int HOME_KEYS_DIALER = 1;
+    public static final int DRAWER_LAYOUT_LIST = 0;
+    public static final int DRAWER_LAYOUT_GRID = 1;
+    public static final int DEFAULT_DRAWER_GRID_COLUMNS = 4;
+    public static final int DEFAULT_DRAWER_GRID_ROWS = 5;
+    public static final int DEFAULT_DRAWER_GRID_ICON_SIZE_DP = 40;
+    public static final int DEFAULT_DRAWER_GRID_ICON_CORNER_RADIUS_DP = 8;
+    public static final int MIN_DRAWER_GRID_COLUMNS = 2;
+    public static final int MAX_DRAWER_GRID_COLUMNS = 6;
+    public static final int MIN_DRAWER_GRID_ROWS = 2;
+    public static final int MAX_DRAWER_GRID_ROWS = 6;
+    public static final int MIN_DRAWER_GRID_ICON_SIZE_DP = 20;
+    public static final int MAX_DRAWER_GRID_ICON_SIZE_DP = 64;
+    public static final int MIN_DRAWER_GRID_ICON_CORNER_RADIUS_DP = 0;
+    public static final int MAX_DRAWER_GRID_ICON_CORNER_RADIUS_DP = 24;
 
     public final int homeCount;
     public final int wallpaperIndex;
     public final int fontSizeSp;
     public final boolean showStatusBar;
+    public final int drawerLayout;
+    public final int drawerGridColumns;
+    public final int drawerGridRows;
+    public final int drawerGridIconSizeDp;
+    public final int drawerGridIconCornerRadiusDp;
     public final int homeKeyBehavior;
     public final int swipeLeftToRightAction;
     public final int swipeRightToLeftAction;
@@ -23,10 +42,43 @@ public final class LauncherConfiguration {
                                  boolean showStatusBar, int homeKeyBehavior,
                                  int swipeLeftToRightAction, int swipeRightToLeftAction,
                                  int[] bindings) {
+        this(homeCount, wallpaperIndex, fontSizeSp, showStatusBar,
+                DRAWER_LAYOUT_LIST, DEFAULT_DRAWER_GRID_COLUMNS, DEFAULT_DRAWER_GRID_ROWS,
+                homeKeyBehavior, swipeLeftToRightAction, swipeRightToLeftAction, bindings);
+    }
+
+    public LauncherConfiguration(int homeCount, int wallpaperIndex, int fontSizeSp,
+                                 boolean showStatusBar, int drawerLayout,
+                                 int drawerGridColumns, int drawerGridRows,
+                                 int homeKeyBehavior, int swipeLeftToRightAction,
+                                 int swipeRightToLeftAction, int[] bindings) {
+        this(homeCount, wallpaperIndex, fontSizeSp, showStatusBar, drawerLayout,
+                drawerGridColumns, drawerGridRows, DEFAULT_DRAWER_GRID_ICON_SIZE_DP,
+                DEFAULT_DRAWER_GRID_ICON_CORNER_RADIUS_DP, homeKeyBehavior,
+                swipeLeftToRightAction, swipeRightToLeftAction, bindings);
+    }
+
+    public LauncherConfiguration(int homeCount, int wallpaperIndex, int fontSizeSp,
+                                 boolean showStatusBar, int drawerLayout,
+                                 int drawerGridColumns, int drawerGridRows,
+                                 int drawerGridIconSizeDp, int drawerGridIconCornerRadiusDp,
+                                 int homeKeyBehavior, int swipeLeftToRightAction,
+                                 int swipeRightToLeftAction, int[] bindings) {
         this.homeCount = clamp(homeCount, 1, BINDING_COUNT);
         this.wallpaperIndex = clamp(wallpaperIndex, 0, 3);
         this.fontSizeSp = clamp(fontSizeSp, 12, 36);
         this.showStatusBar = showStatusBar;
+        this.drawerLayout = drawerLayout == DRAWER_LAYOUT_GRID
+                ? DRAWER_LAYOUT_GRID : DRAWER_LAYOUT_LIST;
+        this.drawerGridColumns = clamp(drawerGridColumns,
+                MIN_DRAWER_GRID_COLUMNS, MAX_DRAWER_GRID_COLUMNS);
+        this.drawerGridRows = clamp(drawerGridRows,
+                MIN_DRAWER_GRID_ROWS, MAX_DRAWER_GRID_ROWS);
+        this.drawerGridIconSizeDp = clamp(drawerGridIconSizeDp,
+                MIN_DRAWER_GRID_ICON_SIZE_DP, MAX_DRAWER_GRID_ICON_SIZE_DP);
+        this.drawerGridIconCornerRadiusDp = clamp(drawerGridIconCornerRadiusDp,
+                MIN_DRAWER_GRID_ICON_CORNER_RADIUS_DP,
+                MAX_DRAWER_GRID_ICON_CORNER_RADIUS_DP);
         this.homeKeyBehavior = homeKeyBehavior == HOME_KEYS_DIALER
                 ? HOME_KEYS_DIALER : HOME_KEYS_QUICK_ACTION;
         this.swipeLeftToRightAction = swipeLeftToRightAction;

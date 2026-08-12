@@ -119,7 +119,8 @@ Tài liệu mô tả toàn bộ hành vi của launcher dựa trên prototype `t
 
 ## 4. Danh sách app (Drawer)
 
-- Danh sách dọc thuần: icon + tên, không chia nhóm, không lưới
+- Mặc định là danh sách dọc thuần. Người dùng có thể đổi sang Grid trong Cấu hình;
+  Grid mặc định 4 cột × 5 hàng, cho phép chỉnh động số cột/hàng và hiển thị icon + tên bên dưới.
 - Ô tìm kiếm ở đầu, gõ bằng T9 multi-tap; không có kết quả → hiện "Không tìm thấy app"
 - Chọn item bằng ▲▼◀▶, mở bằng OK hoặc chạm trực tiếp
 

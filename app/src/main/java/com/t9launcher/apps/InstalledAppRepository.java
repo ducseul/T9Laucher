@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.drawable.Drawable;
+import android.util.LruCache;
 
 import com.t9launcher.search.AppNameMatcher;
 
@@ -18,6 +20,7 @@ public final class InstalledAppRepository implements AppRepository {
     private final Context context;
     private final PackageManager packageManager;
     private final Collator labelCollator = Collator.getInstance(new Locale("vi", "VN"));
+    private final LruCache<String, Drawable> iconCache = new LruCache<>(48);
 
     public InstalledAppRepository(Context context) {
         this.context = context.getApplicationContext();
@@ -62,6 +65,16 @@ public final class InstalledAppRepository implements AppRepository {
     @Override
     public String label(ActivityInfo app) {
         return app.loadLabel(packageManager).toString();
+    }
+
+    @Override
+    public Drawable icon(ActivityInfo app) {
+        String key = app.packageName + "/" + app.name;
+        Drawable cached = iconCache.get(key);
+        if (cached != null) return cached;
+        Drawable loaded = app.loadIcon(packageManager);
+        if (loaded != null) iconCache.put(key, loaded);
+        return loaded;
     }
 
     private static final class MatchedApp {
