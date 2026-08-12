@@ -26,5 +26,8 @@ public final class LauncherKeyTest {
         assertFalse(LauncherKey.OK.isDirectional());
         assertTrue(LauncherKey.POUND.supportsLongPress());
         assertFalse(LauncherKey.DIGIT_1.supportsLongPress());
+        assertTrue(LauncherKey.BACK.dispatchesOnRelease());
+        assertTrue(LauncherKey.CORNER_2.dispatchesOnRelease());
+        assertFalse(LauncherKey.CORNER_1.dispatchesOnRelease());
     }
 }

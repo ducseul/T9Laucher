@@ -503,7 +503,11 @@ public final class LauncherView extends View {
                     slot == selected ? amber : Color.rgb(243, 239, 231));
         }
 
-        text(c, "Danh sách", dp(12), getHeight() - dp(8), 12, amber);
+        float shortcutLabelBaseline = getHeight() - dp(8);
+        text(c, "Danh sách", dp(12), shortcutLabelBaseline, 12, amber);
+        p.setTextAlign(Paint.Align.RIGHT);
+        text(c, "Thông báo", getWidth() - dp(12), shortcutLabelBaseline, 12, amber);
+        p.setTextAlign(Paint.Align.LEFT);
     }
 
     private HomeLayout homeLayout() {
@@ -1453,6 +1457,11 @@ public final class LauncherView extends View {
         }
         if (screen == LauncherScreen.SETTINGS && key == LauncherKey.CORNER_1) {
             goHome();
+            return;
+        }
+        if (screen == LauncherScreen.HOME
+                && (key == LauncherKey.BACK || key == LauncherKey.CORNER_2)) {
+            actions.openNotifications();
             return;
         }
         if (key == LauncherKey.BACK || key == LauncherKey.CORNER_2) {

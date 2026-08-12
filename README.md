@@ -31,7 +31,7 @@ Phiên bản hiện tại được phát triển và kiểm thử chính trên *
 | Phím | Hành vi |
 |---|---|
 | Góc `1` | Mở Drawer; trong Cấu hình: **Lưu và đóng** |
-| Góc `2` hoặc `Back` | Quay lại; trong Cấu hình: **Thoát** về Home |
+| Góc `2` / `Back` | Tại Home mở thanh thông báo; tại màn hình con quay lại Home |
 | Góc `3` / `Call` | Mở ứng dụng Điện thoại |
 | Góc `4` / `Hang Up` | Từ màn hình con về Home; tại Home khóa màn hình |
 | `▲ ▼ ◀ ▶` | Di chuyển mục đang chọn; trong Cấu hình, `◀ ▶` chuyển tab và `▲ ▼` chọn tùy chọn |

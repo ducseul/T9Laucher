@@ -51,6 +51,10 @@ public enum LauncherKey {
         return this == POUND;
     }
 
+    public boolean dispatchesOnRelease() {
+        return this == BACK || this == CORNER_2;
+    }
+
     public long longPressDelayMs() {
         return this == POUND ? 5000L : 500L;
     }

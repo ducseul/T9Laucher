@@ -20,11 +20,14 @@ import android.view.WindowManager;
 import android.widget.Toast;
 
 import com.t9launcher.T9DeviceAdminReceiver;
+import com.t9launcher.T9KeyAccessibilityService;
 
+import java.lang.reflect.Method;
 import java.util.List;
 
 public final class AndroidLauncherActions implements LauncherActions {
     private static final int REQUEST_DEVICE_ADMIN = 4104;
+    private static final long OPEN_NOTIFICATIONS_DELAY_MS = 100L;
 
     private final Activity activity;
 
@@ -38,6 +41,26 @@ public final class AndroidLauncherActions implements LauncherActions {
             activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         } else {
             activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        }
+    }
+
+    @Override
+    public void openNotifications() {
+        activity.getWindow().getDecorView().postDelayed(
+                this::openNotificationsAfterKeyRelease, OPEN_NOTIFICATIONS_DELAY_MS);
+    }
+
+    private void openNotificationsAfterKeyRelease() {
+        if (T9KeyAccessibilityService.openNotifications()) return;
+
+        try {
+            Object statusBar = activity.getSystemService("statusbar");
+            if (statusBar == null) throw new IllegalStateException("Status bar service unavailable");
+            Method expand = statusBar.getClass().getMethod("expandNotificationsPanel");
+            expand.invoke(statusBar);
+        } catch (ReflectiveOperationException | RuntimeException error) {
+            Toast.makeText(activity, "Không thể mở thanh thông báo",
+                    Toast.LENGTH_SHORT).show();
         }
     }
 

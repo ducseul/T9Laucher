@@ -11,8 +11,20 @@ import android.view.accessibility.AccessibilityEvent;
 public final class T9KeyAccessibilityService extends AccessibilityService {
     private static final String OEM_DESKTOP_PACKAGE = "com.dp.op";
     private static final long[] OEM_RECOVERY_DELAYS_MS = {300L, 1000L, 2500L};
+    private static volatile T9KeyAccessibilityService connectedService;
     private final Handler recoveryHandler = new Handler(Looper.getMainLooper());
     private final Runnable restoreLauncherAction = this::restoreLauncherHome;
+
+    @Override
+    protected void onServiceConnected() {
+        super.onServiceConnected();
+        connectedService = this;
+    }
+
+    public static boolean openNotifications() {
+        T9KeyAccessibilityService service = connectedService;
+        return service != null && service.performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS);
+    }
 
     @Override
     protected boolean onKeyEvent(KeyEvent event) {
@@ -63,6 +75,7 @@ public final class T9KeyAccessibilityService extends AccessibilityService {
     @Override
     public void onDestroy() {
         recoveryHandler.removeCallbacks(restoreLauncherAction);
+        if (connectedService == this) connectedService = null;
         super.onDestroy();
     }
 }

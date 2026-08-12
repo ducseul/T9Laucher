@@ -4,6 +4,7 @@ import android.content.pm.ActivityInfo;
 
 public interface LauncherActions {
     void setStatusBarVisible(boolean visible);
+    void openNotifications();
     void lockDeviceOrRequestAdmin();
     boolean isVibrateMode();
     boolean toggleRingerMode();

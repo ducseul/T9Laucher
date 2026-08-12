@@ -30,8 +30,8 @@ public final class KeyEventDispatcher {
         if (key == null || (listener.shouldDelegateDigitInput() && key.isDigit())) return false;
 
         if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
-            if (deferredShortPress && key == heldKey) {
-                fireLongPressWhenDue(key);
+            if (key == heldKey && (deferredShortPress || key.dispatchesOnRelease())) {
+                if (deferredShortPress) fireLongPressWhenDue(key);
                 return true;
             }
             cancelLongPressTimer();
@@ -42,7 +42,7 @@ public final class KeyEventDispatcher {
             if (deferredShortPress) {
                 longPressAction = () -> fireLongPressWhenDue(key);
                 handler.postDelayed(longPressAction, key.longPressDelayMs());
-            } else {
+            } else if (!key.dispatchesOnRelease()) {
                 listener.onKey(key, false);
             }
             Log.d("T9Keys", "down key=" + key + " code=" + event.getKeyCode());
@@ -56,7 +56,9 @@ public final class KeyEventDispatcher {
         if (event.getAction() == KeyEvent.ACTION_UP && key == heldKey) {
             fireLongPressWhenDue(key);
             cancelLongPressTimer();
-            if (deferredShortPress && !longFired) listener.onKey(key, false);
+            if ((deferredShortPress && !longFired) || key.dispatchesOnRelease()) {
+                listener.onKey(key, false);
+            }
             Log.d("T9Keys", "up key=" + key + " heldMs="
                     + (SystemClock.uptimeMillis() - heldSince) + " long=" + longFired);
             heldKey = null;
