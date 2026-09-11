@@ -61,3 +61,37 @@ jobs:
           app/build/test-results/testDebugUnitTest/
         if-no-files-found: ignore
         retention-days: 14
+
+  release:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+    - name: Download debug APK
+      uses: actions/download-artifact@v4
+      with:
+        name: T9Launcher-debug-${{ github.run_number }}
+        path: release-apk
+
+    - name: Publish GitHub Release
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+        RELEASE_TAG: build-${{ github.run_number }}-${{ github.run_attempt }}
+      run: |
+        $apkFiles = @(Get-ChildItem -Path release-apk -Filter *.apk -File)
+        if ($apkFiles.Count -eq 0) { throw 'No APK found for release.' }
+        $releaseArgs = @(
+          'release', 'create', $env:RELEASE_TAG,
+          '--target', $env:GITHUB_SHA,
+          '--title', "T9Launcher $env:RELEASE_TAG (debug)",
+          '--notes', 'Automatically built debug APK. Download the APK from Assets below.',
+          '--generate-notes'
+        )
+        $releaseArgs += @($apkFiles.FullName)
+        & gh @releaseArgs
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
