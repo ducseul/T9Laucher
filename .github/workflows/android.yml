@@ -5,11 +5,20 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
 
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
     - uses: actions/checkout@v4
@@ -18,9 +27,37 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-    - name: Build with Gradle
-      run: ./gradlew build
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v4
+      with:
+        packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+    # The Gradle wrapper is not tracked in this repository.
+    # AGP 8.5.2 uses Gradle 8.7 and JDK 17.
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '8.7'
+
+    - name: Run unit tests and build debug APK
+      run: gradle --no-daemon --stacktrace :app:testDebugUnitTest :app:assembleDebug
+
+    - name: Upload debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: T9Launcher-debug-${{ github.run_number }}
+        path: app/build/outputs/apk/debug/*.apk
+        if-no-files-found: error
+        retention-days: 14
+
+    - name: Upload test reports
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: T9Launcher-test-reports-${{ github.run_number }}
+        path: |
+          app/build/reports/tests/testDebugUnitTest/
+          app/build/test-results/testDebugUnitTest/
+        if-no-files-found: ignore
+        retention-days: 14
