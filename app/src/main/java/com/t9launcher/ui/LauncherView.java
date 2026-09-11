@@ -111,6 +111,10 @@ public final class LauncherView extends View {
     private static final int PICKER_SWIPE_LEFT_TO_RIGHT = 1;
     private static final int PICKER_SWIPE_RIGHT_TO_LEFT = 2;
     private static final long DRAWER_LAUNCH_DEBOUNCE_MS = 300L;
+    private static final int DRAWER_ACTION_OPEN = 0;
+    private static final int DRAWER_ACTION_INFO = 1;
+    private static final int DRAWER_ACTION_UNINSTALL = 2;
+    private static final int DRAWER_ACTION_COUNT = 3;
     private static final long DRAWER_ANIMATION_DURATION_MS = 240L;
     private static final long SETTINGS_REVEAL_DURATION_MS = 220L;
     private static final int ANIMATION_NONE = 0;
@@ -184,6 +188,10 @@ public final class LauncherView extends View {
     private int pickerTarget = PICKER_HOME_SLOT;
     private int pickerSelection = 0;
     private int pickerOffset = 0;
+    private boolean drawerActionMenuVisible;
+    private int drawerActionSelection;
+    private String drawerActionComponent = HomeAppBindings.UNASSIGNED;
+    private int touchedDrawerAction = -1;
     private long lastDrawerLaunchAt = 0L;
     private int homeCount = 4;
     private int wallpaperIndex = 0;
@@ -271,6 +279,9 @@ public final class LauncherView extends View {
             int count = drawerApps().size();
             selected = count == 0 ? 0 : Math.min(selected, count - 1);
         }
+        if (drawerActionMenuVisible && drawerActionApp() == null) {
+            closeDrawerActionMenu(true);
+        }
         invalidate();
     }
 
@@ -284,6 +295,7 @@ public final class LauncherView extends View {
 
     public void goHome() {
         if (screen == LauncherScreen.SETTINGS || screen == LauncherScreen.APP_PICKER) savePrefs();
+        closeDrawerActionMenu(false);
         locked = false;
         if (screen == LauncherScreen.DRAWER && animationsEnabled) {
             if (activeAnimation != ANIMATION_DRAWER_EXIT) {
@@ -296,6 +308,8 @@ public final class LauncherView extends View {
 
     private void finishGoHome() {
         activeAnimation = ANIMATION_NONE;
+        drawerActionMenuVisible = false;
+        drawerActionComponent = HomeAppBindings.UNASSIGNED;
         screen = LauncherScreen.HOME;
         settingsHintScrollStartedAt = 0L;
         drawerTextInput.clear();
@@ -304,7 +318,7 @@ public final class LauncherView extends View {
     }
 
     public boolean isDrawerTextInputActive() {
-        return screen == LauncherScreen.DRAWER && !locked;
+        return screen == LauncherScreen.DRAWER && !locked && !drawerActionMenuVisible;
     }
 
     @Override
@@ -350,7 +364,10 @@ public final class LauncherView extends View {
             return;
         }
         if (screen == LauncherScreen.HOME) drawHome(c);
-        else if (screen == LauncherScreen.DRAWER) drawDrawer(c);
+        else if (screen == LauncherScreen.DRAWER) {
+            drawDrawer(c);
+            if (drawerActionMenuVisible) drawDrawerActionMenu(c);
+        }
         else if (screen == LauncherScreen.SETTINGS) drawSettings(c);
         else if (screen == LauncherScreen.APP_PICKER) drawAppPicker(c);
         else drawHome(c);
@@ -365,6 +382,7 @@ public final class LauncherView extends View {
             } else {
                 activeAnimation = ANIMATION_NONE;
                 drawDrawer(c);
+                if (drawerActionMenuVisible) drawDrawerActionMenu(c);
             }
             return;
         }
@@ -457,6 +475,7 @@ public final class LauncherView extends View {
     }
 
     private void openDrawer() {
+        closeDrawerActionMenu(false);
         screen = LauncherScreen.DRAWER;
         selected = 0;
         drawerOffset = 0;
@@ -829,6 +848,71 @@ public final class LauncherView extends View {
             return;
         }
         drawDrawerList(c, filtered, listTop, inset, unit);
+    }
+
+    private void drawDrawerActionMenu(Canvas c) {
+        ActivityInfo app = drawerActionApp();
+        if (app == null) return;
+
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(Color.argb(112, 0, 0, 0));
+        c.drawRect(0, 0, getWidth(), getHeight(), p);
+
+        RectF bounds = drawerActionMenuBounds();
+        p.setColor(Color.rgb(25, 25, 29));
+        c.drawRoundRect(bounds, dp(9), dp(9), p);
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(dp(1.25f));
+        p.setColor(amber);
+        c.drawRoundRect(bounds, dp(9), dp(9), p);
+        p.setStyle(Paint.Style.FILL);
+
+        float rowHeight = drawerActionRowHeightPx();
+        float textSizeSp = Math.max(13f, Math.min(18f, fontSizeSp));
+        p.setTypeface(Typeface.create("sans", Typeface.NORMAL));
+        p.setTextSize(dp(textSizeSp));
+        TextPaint menuTextPaint = new TextPaint(p);
+        Paint.FontMetrics metrics = p.getFontMetrics();
+        float availableTextWidth = Math.max(0f, bounds.width() - dp(36));
+        for (int action = 0; action < DRAWER_ACTION_COUNT; action++) {
+            float rowTop = bounds.top + action * rowHeight;
+            if (action > 0) {
+                p.setColor(Color.rgb(58, 58, 64));
+                c.drawRect(bounds.left + dp(12), rowTop,
+                        bounds.right - dp(12), rowTop + dp(1), p);
+            }
+            if (action == drawerActionSelection) {
+                p.setColor(amber);
+                c.drawRoundRect(new RectF(bounds.left + dp(7), rowTop + dp(9),
+                                bounds.left + dp(10), rowTop + rowHeight - dp(9)),
+                        dp(1.5f), dp(1.5f), p);
+            }
+            String label = drawerActionLabel(action, app);
+            CharSequence shortened = TextUtils.ellipsize(label, menuTextPaint,
+                    availableTextWidth, TextUtils.TruncateAt.END);
+            float baseline = rowTop
+                    + (rowHeight - (metrics.bottom - metrics.top)) / 2f - metrics.top;
+            text(c, shortened.toString(), bounds.left + dp(20), baseline,
+                    textSizeSp, action == drawerActionSelection
+                            ? amber : Color.rgb(245, 242, 236));
+        }
+    }
+
+    private RectF drawerActionMenuBounds() {
+        float sideMargin = dp(20);
+        float bottom = getHeight() - dp(30);
+        float top = bottom - drawerActionRowHeightPx() * DRAWER_ACTION_COUNT;
+        return new RectF(sideMargin, top, getWidth() - sideMargin, bottom);
+    }
+
+    private float drawerActionRowHeightPx() {
+        return dp(Math.max(44f, fontSizeSp + 24f));
+    }
+
+    private String drawerActionLabel(int action, ActivityInfo app) {
+        if (action == DRAWER_ACTION_OPEN) return "Mở " + appLabel(app);
+        if (action == DRAWER_ACTION_INFO) return "Thông tin ứng dụng";
+        return "Gỡ ứng dụng";
     }
 
     private void drawDrawerList(Canvas c, List<ActivityInfo> filtered,
@@ -1718,6 +1802,10 @@ public final class LauncherView extends View {
     }
 
     public void onKey(LauncherKey key, boolean hold) {
+        if (drawerActionMenuVisible) {
+            handleDrawerActionMenuKey(key);
+            return;
+        }
         if (key == LauncherKey.CORNER_3) {
             locked = false;
             savePrefs();
@@ -1827,7 +1915,8 @@ public final class LauncherView extends View {
             return;
         }
         if (key == LauncherKey.CORNER_1) {
-            openDrawer();
+            if (screen == LauncherScreen.DRAWER) openDrawerActionMenu();
+            else openDrawer();
             return;
         }
         if (key == LauncherKey.CORNER_4) {
@@ -1886,6 +1975,57 @@ public final class LauncherView extends View {
         if (now - lastDrawerLaunchAt < DRAWER_LAUNCH_DEBOUNCE_MS) return;
         lastDrawerLaunchAt = now;
         launch(filtered.get(selected));
+    }
+
+    private void openDrawerActionMenu() {
+        List<ActivityInfo> filtered = drawerApps();
+        if (selected < 0 || selected >= filtered.size()) return;
+        drawerActionComponent = componentId(filtered.get(selected));
+        drawerActionSelection = DRAWER_ACTION_OPEN;
+        drawerActionMenuVisible = true;
+        drawerTextInput.refresh(false);
+        invalidate();
+    }
+
+    private void closeDrawerActionMenu(boolean restoreDrawerInput) {
+        if (!drawerActionMenuVisible) return;
+        drawerActionMenuVisible = false;
+        drawerActionComponent = HomeAppBindings.UNASSIGNED;
+        touchedDrawerAction = -1;
+        if (restoreDrawerInput && screen == LauncherScreen.DRAWER) {
+            drawerTextInput.refresh(true);
+        }
+        invalidate();
+    }
+
+    private ActivityInfo drawerActionApp() {
+        int index = appIndexForBinding(drawerActionComponent);
+        return index >= 0 ? apps.get(index) : null;
+    }
+
+    private void handleDrawerActionMenuKey(LauncherKey key) {
+        if (key == LauncherKey.UP || key == LauncherKey.LEFT) {
+            drawerActionSelection = (drawerActionSelection - 1
+                    + DRAWER_ACTION_COUNT) % DRAWER_ACTION_COUNT;
+            invalidate();
+        } else if (key == LauncherKey.DOWN || key == LauncherKey.RIGHT) {
+            drawerActionSelection = (drawerActionSelection + 1) % DRAWER_ACTION_COUNT;
+            invalidate();
+        } else if (key == LauncherKey.OK) {
+            activateDrawerAction();
+        } else if (key == LauncherKey.BACK || key == LauncherKey.CORNER_2) {
+            closeDrawerActionMenu(true);
+        }
+    }
+
+    private void activateDrawerAction() {
+        ActivityInfo app = drawerActionApp();
+        int action = drawerActionSelection;
+        closeDrawerActionMenu(false);
+        if (app == null) return;
+        if (action == DRAWER_ACTION_OPEN) launch(app);
+        else if (action == DRAWER_ACTION_INFO) actions.openAppInfo(app);
+        else actions.requestUninstall(app);
     }
 
     private void launch(ActivityInfo app) {
@@ -2075,8 +2215,49 @@ public final class LauncherView extends View {
         return true;
     }
 
+    private int touchedDrawerAction(float xPx, float yPx) {
+        RectF bounds = drawerActionMenuBounds();
+        if (!bounds.contains(xPx, yPx)) return -1;
+        int action = (int) ((yPx - bounds.top) / drawerActionRowHeightPx());
+        return action >= 0 && action < DRAWER_ACTION_COUNT ? action : -1;
+    }
+
+    private boolean onDrawerActionMenuTouch(MotionEvent event) {
+        int action = touchedDrawerAction(event.getX(), event.getY());
+        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+            touchedDrawerAction = action;
+            if (action >= 0) {
+                drawerActionSelection = action;
+                invalidate();
+            }
+            getParent().requestDisallowInterceptTouchEvent(true);
+            return true;
+        }
+        if (event.getAction() == MotionEvent.ACTION_MOVE) {
+            if (action >= 0 && action != drawerActionSelection) {
+                drawerActionSelection = action;
+                invalidate();
+            }
+            return true;
+        }
+        if (event.getAction() == MotionEvent.ACTION_UP) {
+            if (action >= 0 && action == touchedDrawerAction) activateDrawerAction();
+            else if (touchedDrawerAction < 0) closeDrawerActionMenu(true);
+            touchedDrawerAction = -1;
+            getParent().requestDisallowInterceptTouchEvent(false);
+            return true;
+        }
+        if (event.getAction() == MotionEvent.ACTION_CANCEL) {
+            touchedDrawerAction = -1;
+            getParent().requestDisallowInterceptTouchEvent(false);
+            return true;
+        }
+        return true;
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        if (drawerActionMenuVisible) return onDrawerActionMenuTouch(event);
         if (event.getAction() == MotionEvent.ACTION_DOWN) {
             touchDownX = event.getX();
             touchDownY = event.getY();

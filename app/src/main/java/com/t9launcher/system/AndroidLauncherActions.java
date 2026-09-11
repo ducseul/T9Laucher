@@ -193,6 +193,30 @@ public final class AndroidLauncherActions implements LauncherActions {
         activity.startActivity(intent);
     }
 
+    @Override
+    public void openAppInfo(ActivityInfo app) {
+        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", app.packageName, null));
+        try {
+            activity.startActivity(intent);
+        } catch (ActivityNotFoundException | SecurityException error) {
+            Toast.makeText(activity, "Không thể mở thông tin ứng dụng",
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void requestUninstall(ActivityInfo app) {
+        Intent intent = new Intent(Intent.ACTION_DELETE,
+                Uri.fromParts("package", app.packageName, null));
+        try {
+            activity.startActivity(intent);
+        } catch (ActivityNotFoundException | SecurityException error) {
+            Toast.makeText(activity, "Không thể mở trình gỡ ứng dụng",
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
     public void handleActivityResult(int requestCode, int resultCode) {
         if (requestCode == REQUEST_DEVICE_ADMIN && resultCode == Activity.RESULT_OK) {
             lockDeviceOrRequestAdmin();

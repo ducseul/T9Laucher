@@ -14,4 +14,6 @@ public interface LauncherActions {
     void openContacts();
     void openMessaging();
     void launch(ActivityInfo app);
+    void openAppInfo(ActivityInfo app);
+    void requestUninstall(ActivityInfo app);
 }
